@@ -38,10 +38,26 @@
   --gradient-card: linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.7) 100%);
   --gradient-glow: radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.25), transparent 70%);
 
-  /* Typography */
-  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /*
+   * Typography — system fonts only.
+   *
+   * No font file is downloaded or redistributed, so the project carries no
+   * font licence obligations and the site makes no third-party request. Each
+   * stack names the native UI face of every platform in turn and ends at a
+   * generic family, so text renders in whatever the device already has.
+   *
+   * A side benefit: scripts these stacks do not cover — Chinese, Japanese,
+   * Korean, Arabic — resolve to the reader's own system font, which is very
+   * likely better than anything shipped here would have been.
+   */
+  --font-system-sans:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --font-heading: var(--font-system-sans);
+  --font-body: var(--font-system-sans);
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
 
   /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);

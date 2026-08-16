@@ -94,10 +94,11 @@ replaced, and a name with nothing recognisable left falls back to `document`.
 - Buffers and object URLs are released when a file is removed, a tool is reset,
   or the page closes. Download URLs are revoked 10 seconds after the click,
   which is long enough for the browser to start the transfer.
-- Webfonts are self-hosted from the bundle. The site makes **no third-party
-  request of any kind** — no CDN, no font host, no analytics, no telemetry.
-  After the initial page load, using the app generates no network traffic at
-  all, so it works fully offline once cached.
+- No webfonts. Typography uses each device's own system fonts, so no font file
+  is downloaded or redistributed and no font licence applies. The site makes
+  **no third-party request of any kind** — no CDN, no font host, no analytics,
+  no telemetry. After the initial page load, using the app generates no network
+  traffic at all, so it works fully offline once cached.
 - No `localStorage`, `sessionStorage`, `IndexedDB`, Cache API, service worker,
   or cookies. Nothing survives closing the tab, by design.
 - Verify this independently: open the browser network panel, run any tool, and
@@ -184,9 +185,7 @@ src/
     download.ts          Direct download, ZIP packaging, delivery planning
   components/   Dashboard, shared controls, and one workspace per tool
   router/       Hash router
-  styles/       Theme tokens, base styles, and self-hosted fonts
-    fonts.css            @font-face rules; the only place fonts are declared
-    fonts/               woff2 files and their OFL licenses
+  styles/       Theme tokens and base styles (system fonts; no font files)
   test/         Vitest suites and fixtures
 ```
 

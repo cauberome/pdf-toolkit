@@ -11,10 +11,12 @@
       name="description"
       content="Merge, delete, reorder, split, and convert PDF files directly in your browser. 100% privacy-first with zero server uploads."
     />
-    <!-- Fonts are self-hosted in src/styles/fonts.css. Nothing here may point
-         at a third-party host: the deployed site must make no external request
-         at all, so that "processed entirely in your browser" is verifiable in
-         the network panel rather than merely asserted. -->
+    <!-- No webfont link, by design. Typography uses system fonts only
+         (see src/styles/theme.css), so no font file is redistributed and no
+         font licence applies. Nothing here may point at a third-party host:
+         the deployed site must make no external request at all, so that
+         "processed entirely in your browser" is verifiable in the network
+         panel rather than merely asserted. -->
   </head>
   <body>
     <div id="root"></div>

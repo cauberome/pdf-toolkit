@@ -51,10 +51,9 @@ Processing engine and infrastructure:
   refused without crashing or clearing the workspace.
 - A locally bundled pdf.js worker resolved through `import.meta.url`, so
   rendering never contacts a CDN and works from any base path.
-- Self-hosted Inter, Outfit, and JetBrains Mono, each a variable font covering
-  its full weight range, split into latin and latin-ext by unicode-range. The
-  deployed site therefore makes no third-party request of any kind, and works
-  offline once cached. Their SIL Open Font License texts ship alongside them.
+- System-font typography. No webfont is downloaded or redistributed, so the
+  project carries no font licence obligations and the deployed site makes no
+  third-party request of any kind. It works offline once cached.
 - ZIP packaging for multi-file outputs, with single outputs downloading
   directly, and safe default output names derived from sanitized source names.
 - Object URL and buffer release on file removal, tool reset, and page close.

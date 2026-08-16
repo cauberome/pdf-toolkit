@@ -183,7 +183,40 @@ YYYY-MM-DD — TASK-ID — STATUS
 - Decisions, blockers, or follow-up:
 ```
 
-2026-08-17 — PRIVACY — SELF-HOSTED FONTS — COMPLETE
+2026-08-17 — TYPOGRAPHY — SYSTEM FONTS ONLY — COMPLETE
+- Work performed: Removed every bundled font at the user's instruction to use
+  no font that requires a licence. Self-hosting solved the privacy problem but
+  not the licensing one: redistributing a webfont means accepting its terms,
+  and the SIL Open Font License, permissive as it is, still obliges the project
+  to carry its text and honour its conditions. Shipping no font file at all
+  removes the obligation entirely. Deleted `src/styles/fonts.css`, the six
+  woff2 files, and the three OFL texts; dropped the `@import` from
+  `index.css`; and replaced the typography tokens in `theme.css` with complete
+  system stacks (`system-ui` and platform UI faces for text, `ui-monospace`
+  and platform mono faces for code), each ending at a generic family. Existing
+  heading weight and negative letter-spacing are unchanged, so headings keep
+  their tighter set.
+- Files changed: deleted `src/styles/fonts.css`, `src/styles/fonts/` (6 woff2 +
+  3 OFL texts); modified `src/styles/theme.css`, `src/styles/index.css`,
+  `index.html`, `README.md`, `CHANGELOG.md`, `TASKS.md`.
+- Verification command and result: clean rebuild after `rm -rf dist`;
+  `npm run verify` exit 0 (ESLint 0 problems, tsc 0 errors, Vitest 128/128
+  across 10 files, build succeeded). `find dist -name '*.woff*' -o -name
+  '*.ttf' -o -name '*.otf'` returns nothing, so no font file ships. `grep` for
+  `googleapis`/`gstatic`/`woff2` over the built HTML and CSS returns 0 matches,
+  and no reference to Inter, Outfit, JetBrains Mono, or `fonts.css` remains in
+  `src/` or `index.html`. Re-served `dist/` from `/pdf-toolkit/`: HTTP 200 for
+  root, favicon, JS, CSS, and the pdf.js worker. Bundle CSS dropped from
+  7.98 kB to 6.1 kB and the 218 KB of font payload is gone.
+- Decisions, blockers, or follow-up: Visual consequence, accepted by
+  instruction — headings previously used Outfit, a geometric display face, and
+  now share the system UI face with body text, so the two are distinguished by
+  weight and letter-spacing rather than by typeface. Rendering now varies by
+  platform (SF on Apple, Segoe UI on Windows, Roboto on Android) rather than
+  being identical everywhere. Non-Latin scripts resolve to the reader's own
+  system font, which is better than the previous latin-only subsets could do.
+
+2026-08-17 — PRIVACY — SELF-HOSTED FONTS — SUPERSEDED SAME DAY
 - Work performed: Removed the last third-party request from the deployed site.
   `index.html` previously pulled Inter, Outfit, and JetBrains Mono from
   `fonts.googleapis.com`, so every visit disclosed a visitor's IP address and
