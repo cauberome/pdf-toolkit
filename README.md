@@ -1,3 +1,5 @@
+So
+
 # PDF Toolkit
 
 A privacy-first PDF workbench that runs entirely in the browser. Merge, edit,
@@ -9,15 +11,15 @@ performed by JavaScript running in the tab that has the file open.
 
 ## Tools
 
-| Tool | Route | What it does |
-| --- | --- | --- |
-| Merge PDFs | `#/merge` | Combine two or more PDFs in a chosen order into `merged.pdf`. |
-| Delete and reorder | `#/edit` | Select pages to remove and reorder the ones kept. At least one page must remain. |
-| Split PDF | `#/split` | One file per page, or custom groups such as `1-3;4,6;7-9`. |
-| Convert | `#/convert` | JPG/PNG/WebP images into one PDF, or selected PDF pages out as PNG/JPEG. |
-| Compress PDF | `#/compress` | Automatic quality preset or best-effort target size. Rasterizes pages. |
-| Crop PDF | `#/crop` | Visual top/right/bottom/left margins applied to selected pages or all pages. |
-| Add Pages | `#/add-pages` | Insert blank pages, every page of another PDF, or ordered images. |
+| Tool               | Route           | What it does                                                                     |
+| ------------------ | --------------- | -------------------------------------------------------------------------------- |
+| Merge PDFs         | `#/merge`     | Combine two or more PDFs in a chosen order into`merged.pdf`.                   |
+| Delete and reorder | `#/edit`      | Select pages to remove and reorder the ones kept. At least one page must remain. |
+| Split PDF          | `#/split`     | One file per page, or custom groups such as`1-3;4,6;7-9`.                      |
+| Convert            | `#/convert`   | JPG/PNG/WebP images into one PDF, or selected PDF pages out as PNG/JPEG.         |
+| Compress PDF       | `#/compress`  | Automatic quality preset or best-effort target size. Rasterizes pages.           |
+| Crop PDF           | `#/crop`      | Visual top/right/bottom/left margins applied to selected pages or all pages.     |
+| Add Pages          | `#/add-pages` | Insert blank pages, every page of another PDF, or ordered images.                |
 
 Routes are hash-based so a direct link works on GitHub Pages without any
 server-side rewrite rules.
@@ -40,16 +42,16 @@ dependencies; the lockfile is what CI installs from.
 
 ## Commands
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Vite dev server with hot module replacement. |
-| `npm run build` | Type-check with `tsc`, then emit the production bundle to `dist/`. |
-| `npm run preview` | Serve the built `dist/` locally. |
-| `npm run lint` | ESLint 9 flat config across the repository. |
-| `npm run typecheck` | `tsc --noEmit`. |
-| `npm test` | Vitest run (unit, component, and integration suites). |
-| `npm run test:watch` | Vitest in watch mode. |
-| `npm run verify` | lint → typecheck → test → build. The gate CI runs. |
+| Command                | Purpose                                                               |
+| ---------------------- | --------------------------------------------------------------------- |
+| `npm run dev`        | Vite dev server with hot module replacement.                          |
+| `npm run build`      | Type-check with`tsc`, then emit the production bundle to `dist/`. |
+| `npm run preview`    | Serve the built`dist/` locally.                                     |
+| `npm run lint`       | ESLint 9 flat config across the repository.                           |
+| `npm run typecheck`  | `tsc --noEmit`.                                                     |
+| `npm test`           | Vitest run (unit, component, and integration suites).                 |
+| `npm run test:watch` | Vitest in watch mode.                                                 |
+| `npm run verify`     | lint → typecheck → test → build. The gate CI runs.                 |
 
 ## Supported formats
 
@@ -92,13 +94,15 @@ replaced, and a name with nothing recognisable left falls back to `document`.
 - Buffers and object URLs are released when a file is removed, a tool is reset,
   or the page closes. Download URLs are revoked 10 seconds after the click,
   which is long enough for the browser to start the transfer.
+- Webfonts are self-hosted from the bundle. The site makes **no third-party
+  request of any kind** — no CDN, no font host, no analytics, no telemetry.
+  After the initial page load, using the app generates no network traffic at
+  all, so it works fully offline once cached.
+- No `localStorage`, `sessionStorage`, `IndexedDB`, Cache API, service worker,
+  or cookies. Nothing survives closing the tab, by design.
 - Verify this independently: open the browser network panel, run any tool, and
-  confirm no request carries document bytes or filenames.
-
-One caveat worth stating plainly: `index.html` loads webfonts from
-`fonts.googleapis.com`. No document data or filename is involved, but each
-visit does contact Google. Self-host the fonts if that contact is unacceptable
-in your context.
+  confirm no request carries document bytes or filenames. Or disconnect from
+  the network after the page loads and confirm every tool still works.
 
 ## Limitations
 
@@ -180,6 +184,9 @@ src/
     download.ts          Direct download, ZIP packaging, delivery planning
   components/   Dashboard, shared controls, and one workspace per tool
   router/       Hash router
+  styles/       Theme tokens, base styles, and self-hosted fonts
+    fonts.css            @font-face rules; the only place fonts are declared
+    fonts/               woff2 files and their OFL licenses
   test/         Vitest suites and fixtures
 ```
 

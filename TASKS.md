@@ -183,6 +183,41 @@ YYYY-MM-DD — TASK-ID — STATUS
 - Decisions, blockers, or follow-up:
 ```
 
+2026-08-17 — PRIVACY — SELF-HOSTED FONTS — COMPLETE
+- Work performed: Removed the last third-party request from the deployed site.
+  `index.html` previously pulled Inter, Outfit, and JetBrains Mono from
+  `fonts.googleapis.com`, so every visit disclosed a visitor's IP address and
+  user agent to Google — a poor fit for a tool whose front page claims 100%
+  privacy. Downloaded the three families as variable fonts (one file per family
+  per unicode-range subset, covering every weight the theme uses), placed them
+  under `src/styles/fonts/`, and declared them in a new `src/styles/fonts.css`
+  imported ahead of `theme.css`. Kept only the latin and latin-ext subsets;
+  scripts outside those ranges fall back to the system stack exactly as they
+  did before, so this is not a regression for non-Latin filenames. Files are
+  referenced relatively so Vite fingerprints them and rewrites the URLs, which
+  keeps them working under a Pages project subpath — the same trap that caused
+  the earlier `/vite.svg` 404. All three families are SIL Open Font License
+  1.1; their upstream OFL texts are bundled beside the woff2 files to satisfy
+  the license's redistribution requirement.
+- Files changed: added `src/styles/fonts.css`, `src/styles/fonts/*.woff2` (6),
+  `src/styles/fonts/{Inter,Outfit,JetBrainsMono}-OFL.txt`; modified
+  `index.html`, `src/styles/index.css`, `README.md`, `CHANGELOG.md`,
+  `TASKS.md`.
+- Verification command and result: `npm run verify` passed (ESLint 0 problems,
+  tsc 0 errors, Vitest 128/128 across 10 files, build succeeded). Fonts total
+  218 KB across 6 files and are emitted fingerprinted into `dist/assets/`.
+  `grep` for `googleapis`/`gstatic` over `dist/index.html`, the bundled CSS,
+  and the bundled JS returns 0 matches, and no `https://` URL remains in the
+  built HTML or app CSS. Built CSS references the fonts as `url(./<name>.woff2)`.
+  Re-served `dist/` from `/pdf-toolkit/` and confirmed HTTP 200 for the root,
+  favicon, JS, CSS, pdf.js worker, and all six woff2 files, with
+  `content-type: font/woff2`.
+- Decisions, blockers, or follow-up: Folded into the `1.0.0` changelog entry
+  rather than opening `1.0.1`, since 1.0.0 has never been published — there is
+  no remote and no tag. The Google Fonts item is removed from Known
+  limitations. The deployed site now makes no third-party request at all and
+  works offline once cached.
+
 2026-08-17 — REL-01 — COMPLETE; REL-02, REL-03 — HELD OPEN
 - Work performed:
   - REL-01: Wrote `README.md` covering the seven tools and their hash routes,
