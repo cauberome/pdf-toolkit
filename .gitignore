@@ -2,6 +2,12 @@ node_modules/
 dist/
 coverage/
 
+# Playwright output
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
 # Local env and editor state
 .env
 .env.*

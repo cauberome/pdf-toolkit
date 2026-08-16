@@ -119,12 +119,14 @@
     and Pages publication of `dist/`.
   - Verify lint/type checks, unit/component tests, production build, end-to-end
     browser tests, deployment, direct hash routes, and static asset loading.
-  - Configuration complete and locally verified. Two verification items remain
-    open by decision, not by defect:
-    - [ ] Playwright end-to-end runs in Chromium, Firefox, and WebKit
-      (browsers not installed; deferred).
-    - [ ] Deployment and deployed-site checks (no git repository or GitHub
-      remote exists yet, so the workflow has never executed).
+  - Configuration complete and locally verified. Remaining open items:
+    - [x] Playwright end-to-end runs in Chromium — 23 tests, added and passing,
+      wired into the CI job ahead of the build.
+    - [ ] Firefox and WebKit end-to-end runs (only Chromium's browser build is
+      present in the local Playwright cache; adding them means a ~155 MB
+      download).
+    - [ ] Deployment and deployed-site checks (no GitHub remote exists yet, so
+      the workflow has never executed).
 
 - [x] **BE-08 — Compression engine**
   - Implement automatic raster-compression presets and best-effort target-size
@@ -182,6 +184,62 @@ YYYY-MM-DD — TASK-ID — STATUS
 - Verification command and result:
 - Decisions, blockers, or follow-up:
 ```
+
+2026-08-17 — BE-07 — CHROMIUM END-TO-END SUITE — COMPLETE (FIREFOX/WEBKIT STILL OPEN)
+- Work performed: Added a Playwright suite that closes the coverage gap jsdom
+  structurally cannot reach, and used it to confirm the five defects from the
+  pre-release review are genuinely fixed.
+  - Discovered that `@playwright/test` was not installed anywhere, but the
+    browser cache at `~/Library/Caches/ms-playwright/` already held Chromium
+    1228 and 1234 from other projects (~1.09 GB). Playwright 1.62.1 asks for
+    exactly chromium-1234 and ffmpeg-1011, so the package installed with
+    `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` and nothing was downloaded. Firefox
+    and WebKit are absent, hence Chromium-only.
+  - `e2e/harness/` is a dev-only page that hands the engine modules to
+    `window`, so specs can call `pdfToImages`, `compressPdf`, `cropPdf`, and
+    `addPagesToPdf` with a real canvas, a real pdf.js worker, and real image
+    codecs, then read the pixels back. It is served by Vite in dev and is never
+    part of the production build, whose only input is the root `index.html`.
+  - `e2e/rasterization.spec.ts` (11 tests): real canvas output at 1x and 2x,
+    one test per pre-release defect, crop-box versus media-box behaviour, and a
+    no-network assertion around processing.
+  - `e2e/workflows.spec.ts` (12 tests): all seven workspaces driven through the
+    UI to a real download with its filename asserted, two recoverable-failure
+    paths, all seven hash routes, and a no-third-party-request check.
+  - Red-green confirmation: each of the five fixes was reverted in turn with a
+    scripted mutation and the matching test was rerun. All six mutations (the
+    raster-sizing fix covers two tests) produced a failure, then the source was
+    restored from git and confirmed unmodified. The tests catch the regressions
+    rather than merely passing beside them.
+  - Three of my own tests were wrong on the first run and were fixed after
+    finding the cause, not by relaxing the assertion. Two compression tests were
+    vacuous: `compressPdf` returns the source untouched when rasterising would
+    enlarge it, so a near-empty fixture never exercised the raster path at all.
+    They now use a fixture that is heavy as vectors but cheap as pixels, and
+    assert `result.rasterized` as a guard so they cannot silently go vacuous
+    again. The third asserted media-box dimensions after a crop; `cropPdf` only
+    sets the crop box, which is the vector-preserving behaviour, so the test now
+    checks both boxes explicitly.
+  - CI installs Chromium and runs the suite between the unit tests and the
+    build, so a deployment cannot ship past a failing end-to-end run. A failed
+    run uploads the Playwright report as an artifact.
+- Files changed: added `playwright.config.ts`, `e2e/harness/{index.html,
+  main.ts,api.ts}`, `e2e/support/fixtures.ts`, `e2e/rasterization.spec.ts`,
+  `e2e/workflows.spec.ts`; modified `package.json` (added `@playwright/test`
+  and the `test:e2e` script), `vite.config.ts` (Vitest must not collect the
+  Playwright specs), `tsconfig.json`, `eslint.config.js`, `.gitignore`,
+  `.github/workflows/deploy.yml`, `README.md`, `CHANGELOG.md`, `TASKS.md`.
+- Verification command and result: `npm run test:e2e` — 23 passed, 0 failed.
+  `npm run verify` — exit 0 (ESLint 0 problems, tsc 0 errors including the new
+  `e2e/` sources, Vitest 128/128 across 10 files unchanged, build succeeded).
+  Red-green mutation results, all six as required: BE-08 raster sizing
+  (rotated), BE-08 raster sizing (cropped), BE-08 target-mode validation, BE-09
+  crop rotation mapping, BE-10 match blank size, BE-10 empty image error.
+- Decisions, blockers, or follow-up: The suite runs against the dev server so
+  specs can import engine modules through the harness; the built bundle stays
+  covered by the separate Pages-subpath asset check. Firefox and WebKit remain
+  open and now cost only a browser download. Deployment is still the one thing
+  keeping BE-07 and REL-02 from closing.
 
 2026-08-17 — TYPOGRAPHY — SYSTEM FONTS ONLY — COMPLETE
 - Work performed: Removed every bundled font at the user's instruction to use

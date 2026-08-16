@@ -51,7 +51,8 @@ dependencies; the lockfile is what CI installs from.
 | `npm run typecheck`  | `tsc --noEmit`.                                                     |
 | `npm test`           | Vitest run (unit, component, and integration suites).                 |
 | `npm run test:watch` | Vitest in watch mode.                                                 |
-| `npm run verify`     | lint → typecheck → test → build. The gate CI runs.                 |
+| `npm run test:e2e`   | Playwright end-to-end suite (Chromium). Starts the dev server itself. |
+| `npm run verify`     | lint → typecheck → test → build. CI runs this plus `test:e2e`.     |
 
 ## Supported formats
 
@@ -133,26 +134,41 @@ ZIP packaging and the one-file-versus-ZIP rule, compression attempt ordering
 and target reporting, crop geometry, page insertion, and component behaviour
 for drag/drop, keyboard selection, progress, errors, reset, and download states.
 
-Two coverage limits are worth knowing:
+`npm run test:e2e` runs Playwright against Chromium. It covers what jsdom
+structurally cannot:
 
-- jsdom has no canvas, so `pdfToImages` and `renderPdfThumbnails` are tested at
-  the level of their sizing rules, validation, ordering, naming, and packaging
-  rather than actual pixel output. Confirming real rasterization needs a
-  browser.
+- **Real rasterization.** Pages are rendered on an actual canvas through the
+  pdf.js worker and the pixels are read back — dimensions, and that the output
+  is drawn rather than blank.
+- **The five defects** found in the pre-release review of compression, crop,
+  and page insertion. Each has a test verified by reverting the fix and
+  confirming the test fails, so it genuinely catches a regression rather than
+  merely passing.
+- **All seven workflows** driven through the UI: choose files, operate the
+  controls, and assert the resulting download and its filename.
+- **Recoverable failures** and the privacy property — no third-party request is
+  made while loading or using the app.
+
+Two coverage limits remain:
+
+- Only Chromium runs. The plan calls for Firefox and WebKit too; their browser
+  builds are not installed. Tracked in `TASKS.md`.
 - jsdom borrows Node's `TextEncoder`, whose `Uint8Array` fails `instanceof`
   inside the jsdom realm, so JSZip rejects it. Test helpers re-wrap
   accordingly; this does not happen in a real browser.
 
-Playwright end-to-end runs across Chromium, Firefox, and WebKit are specified
-in the implementation plan but have not been executed — see
-[docs/PDF_TOOL_IMPLEMENTATION_PLAN.md](docs/PDF_TOOL_IMPLEMENTATION_PLAN.md).
+The E2E suite runs against the dev server, so specs can reach engine modules
+through a harness page at `e2e/harness/`, which is never part of the production
+build. The built bundle is checked separately by serving `dist/` from a
+Pages-style subpath.
 
 ## Deployment
 
 `.github/workflows/deploy.yml` runs on every push and pull request to `main`:
 
-1. **verify** — `npm ci`, then lint, typecheck, test, and build, then upload
-   `dist/` as a Pages artifact.
+1. **verify** — `npm ci`, then lint, typecheck, unit tests, the Chromium
+   end-to-end suite, and the production build, then upload `dist/` as a Pages
+   artifact. A failed E2E run uploads the Playwright report as an artifact.
 2. **deploy** — publishes to GitHub Pages, and only from `main`. Pull requests
    stop after verify.
 
@@ -187,6 +203,9 @@ src/
   router/       Hash router
   styles/       Theme tokens and base styles (system fonts; no font files)
   test/         Vitest suites and fixtures
+e2e/            Playwright suite (Chromium)
+  harness/      Dev-only page exposing the engine for real-canvas assertions
+  support/      Node-side fixture builders and base64 transport
 ```
 
 Page indexes are zero-based everywhere inside the engine. User-facing page

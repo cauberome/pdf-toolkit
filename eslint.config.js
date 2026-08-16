@@ -30,8 +30,10 @@ export default tseslint.config(
     },
   },
   {
-    // Tests run under Node and jsdom, and may reach for both global sets.
-    files: ['src/test/**/*.{ts,tsx}'],
+    // Tests run under Node and jsdom, and may reach for both global sets. The
+    // end-to-end specs straddle the same line: the test body is Node, the
+    // `page.evaluate` callbacks are browser.
+    files: ['src/test/**/*.{ts,tsx}', 'e2e/**/*.ts', 'playwright.config.ts'],
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
     },

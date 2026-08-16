@@ -64,6 +64,11 @@ Processing engine and infrastructure:
   publishes `dist/` to GitHub Pages from `main`.
 - `README.md` covering setup, commands, supported formats, privacy behavior,
   limitations, tests, and deployment.
+- Playwright end-to-end suite (23 tests, Chromium) covering real canvas
+  rasterization, all seven workflows driven through the UI, recoverable
+  failures, direct hash routes, and the no-third-party-request property. Each
+  of the five pre-release defects has a test proven to fail when its fix is
+  reverted. CI installs Chromium and runs the suite before deploying.
 
 ### Fixed
 
@@ -97,10 +102,8 @@ engine, before any public release:
 
 ### Known limitations
 
-- Playwright end-to-end runs across Chromium, Firefox, and WebKit are specified
-  in the implementation plan but have not been executed. Automated coverage is
-  128 Vitest tests under jsdom, which has no canvas, so real rasterization
-  output is unverified by machine.
+- End-to-end tests run in Chromium only. The plan also calls for Firefox and
+  WebKit, whose browser builds are not installed.
 - The deployed GitHub Pages site has not been checked, because the project has
   not been published to a remote yet.
 - Compression target size is best-effort, and compression always rasterizes.
