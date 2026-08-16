@@ -17,7 +17,19 @@ import { defineConfig, devices } from '@playwright/test';
  */
 
 const PORT = 5173;
-const HOST = `http://localhost:${PORT}`;
+const HOST = `http://localhost:${PORT}/`;
+
+/**
+ * Point the suite at an already-running deployment instead of a local dev
+ * server, which is how the published GitHub Pages site is accepted:
+ *
+ *   PLAYWRIGHT_BASE_URL=https://<user>.github.io/pdf-toolkit/ npm run test:e2e
+ *
+ * Only `workflows.spec.ts` can run that way. The rasterisation specs need the
+ * dev-only harness page, which no production build contains.
+ */
+const DEPLOYED = process.env.PLAYWRIGHT_BASE_URL;
+const BASE_URL = DEPLOYED ?? HOST;
 
 export default defineConfig({
   testDir: './e2e',
@@ -31,7 +43,7 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   use: {
-    baseURL: HOST,
+    baseURL: BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -43,10 +55,14 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'npm run dev',
-    url: HOST,
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  // Testing a deployment means testing what is already serving; starting a
+  // local server as well would only hide which one the assertions ran against.
+  webServer: DEPLOYED
+    ? undefined
+    : {
+        command: 'npm run dev',
+        url: HOST,
+        reuseExistingServer: !process.env.CI,
+        timeout: 60_000,
+      },
 });

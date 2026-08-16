@@ -126,6 +126,14 @@ export const Header: React.FC<HeaderProps> = ({ currentRoute, onNavigate }) => {
         .header-nav {
           display: flex;
           align-items: center;
+          /* A flex item defaults to min-width:auto, so it refuses to shrink
+             below its content. Without this the eight-item nav pushes the whole
+             page wider than the viewport instead of scrolling inside itself,
+             and the overflow-x below never gets the chance to do anything.
+             The responsive pass predates Compress, Crop, and Add Pages, which
+             is what tipped the row over the edge on a phone. */
+          min-width: 0;
+          flex: 1 1 auto;
         }
         .nav-list {
           display: flex;
@@ -134,6 +142,13 @@ export const Header: React.FC<HeaderProps> = ({ currentRoute, onNavigate }) => {
           list-style: none;
           overflow-x: auto;
           scrollbar-width: thin;
+          /* Same reason as above, one level down. */
+          min-width: 0;
+        }
+        .nav-list > li {
+          /* Keeps each button at its natural size once the row scrolls,
+             rather than squashing them below a usable touch target. */
+          flex: 0 0 auto;
         }
         .nav-link {
           display: inline-flex;

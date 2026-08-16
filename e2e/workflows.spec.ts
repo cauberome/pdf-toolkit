@@ -40,7 +40,7 @@ async function downloadFrom(page: Page, name: RegExp): Promise<Download> {
 
 test.describe('workspace workflows', () => {
   test('merge combines two documents into merged.pdf', async ({ page }) => {
-    await page.goto('/#/merge');
+    await page.goto('#/merge');
     await chooseFiles(page, [
       pdfFile('first.pdf', await createSolidPdf(200, 300, 2)),
       pdfFile('second.pdf', await createSolidPdf(200, 300, 3)),
@@ -51,7 +51,7 @@ test.describe('workspace workflows', () => {
   });
 
   test('delete and reorder saves an edited document', async ({ page }) => {
-    await page.goto('/#/edit');
+    await page.goto('#/edit');
     await chooseFiles(page, [pdfFile('report.pdf', await createSolidPdf(200, 300, 3))]);
 
     // Thumbnails are rendered with the real pdf.js canvas path.
@@ -64,7 +64,7 @@ test.describe('workspace workflows', () => {
   });
 
   test('split produces a ZIP of one document per page', async ({ page }) => {
-    await page.goto('/#/split');
+    await page.goto('#/split');
     await chooseFiles(page, [pdfFile('manual.pdf', await createSolidPdf(200, 300, 3))]);
 
     const download = await downloadFrom(page, /Extract \d+ Documents?/i);
@@ -73,7 +73,7 @@ test.describe('workspace workflows', () => {
   });
 
   test('images convert into a single PDF', async ({ page }) => {
-    await page.goto('/#/convert');
+    await page.goto('#/convert');
     await chooseFiles(page, [
       pngFile('one.png', createPngBytes(40, 60)),
       pngFile('two.png', createPngBytes(60, 40)),
@@ -84,7 +84,7 @@ test.describe('workspace workflows', () => {
   });
 
   test('a PDF converts into page images', async ({ page }) => {
-    await page.goto('/#/convert');
+    await page.goto('#/convert');
     // The mode switcher is a proper tablist, not a pair of plain buttons.
     await page.getByRole('tab', { name: /PDF to Images/i }).click();
     await chooseFiles(page, [pdfFile('deck.pdf', await createSolidPdf(200, 300, 2))]);
@@ -94,7 +94,7 @@ test.describe('workspace workflows', () => {
   });
 
   test('compress returns a smaller document', async ({ page }) => {
-    await page.goto('/#/compress');
+    await page.goto('#/compress');
     await chooseFiles(page, [pdfFile('scan.pdf', await createSolidPdf(400, 600, 2))]);
 
     const download = await downloadFrom(page, /Compress and Download/i);
@@ -102,7 +102,7 @@ test.describe('workspace workflows', () => {
   });
 
   test('crop applies margins to the selected pages', async ({ page }) => {
-    await page.goto('/#/crop');
+    await page.goto('#/crop');
     await chooseFiles(page, [pdfFile('poster.pdf', await createSolidPdf(400, 600, 2))]);
 
     await page.getByRole('button', { name: /Select all/i }).click();
@@ -112,7 +112,7 @@ test.describe('workspace workflows', () => {
   });
 
   test('add pages inserts blank pages into a document', async ({ page }) => {
-    await page.goto('/#/add-pages');
+    await page.goto('#/add-pages');
     await chooseFiles(page, [pdfFile('contract.pdf', await createSolidPdf(200, 300, 2))]);
 
     const download = await downloadFrom(page, /Save & Download PDF/i);
@@ -122,7 +122,7 @@ test.describe('workspace workflows', () => {
 
 test.describe('recoverable failures', () => {
   test('a mislabeled file is refused with a readable message', async ({ page }) => {
-    await page.goto('/#/merge');
+    await page.goto('#/merge');
     await chooseFiles(page, [
       {
         name: 'pretend.pdf',
@@ -135,7 +135,7 @@ test.describe('recoverable failures', () => {
   });
 
   test('the workspace keeps working after a rejected file', async ({ page }) => {
-    await page.goto('/#/merge');
+    await page.goto('#/merge');
     await chooseFiles(page, [
       { name: 'bad.pdf', mimeType: 'application/pdf', buffer: Buffer.from('junk') },
     ]);
@@ -164,18 +164,48 @@ test.describe('deployment shape', () => {
     ];
 
     for (const [route, heading] of routes) {
-      await page.goto(`/${route}`);
+      await page.goto(route);
       await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible();
     }
   });
 
-  test('loading and using the app makes no third-party request', async ({ page }) => {
+  test('the layout fits a phone without sideways scrolling', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    for (const route of ['', '#/merge', '#/crop', '#/add-pages']) {
+      await page.goto(route);
+
+      // Guard first: a page that failed to render has no overflow either, and
+      // would turn this into a test that passes hardest when most broken.
+      await expect(
+        page.locator('main button, main [role="button"]').first(),
+        `nothing rendered on "${route || 'dashboard'}"`,
+      ).toBeVisible();
+
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      // A page wider than its viewport is the classic mobile regression, and
+      // it is invisible at desktop width. The header nav is the usual culprit:
+      // it scrolls internally, but only if it is allowed to shrink.
+      expect(overflow, `horizontal overflow on "${route || 'dashboard'}"`).toBeLessThanOrEqual(1);
+    }
+
+    // The primary action must still be reachable, not merely present.
+    await page.goto('#/merge');
+    await expect(page.getByRole('button', { name: /Drop PDF files here/i })).toBeVisible();
+  });
+
+  test('loading and using the app makes no third-party request', async ({ page, baseURL }) => {
+    // Taken from baseURL so this holds for the deployed origin too, not just
+    // the dev server.
+    const origin = new URL(baseURL!).origin;
     const external: string[] = [];
     page.on('request', (request) => {
-      if (!request.url().startsWith('http://localhost:')) external.push(request.url());
+      if (!request.url().startsWith(origin)) external.push(request.url());
     });
 
-    await page.goto('/#/merge');
+    await page.goto('#/merge');
     await chooseFiles(page, [
       pdfFile('a.pdf', await createSolidPdf(200, 300, 1)),
       pdfFile('b.pdf', await createSolidPdf(200, 300, 1)),
