@@ -10,8 +10,12 @@ Nothing yet.
 
 ## [1.0.0] - 2026-08-17
 
-First release. A browser-only PDF workbench: every document is processed in the
-tab that opened it, and no document byte or filename is sent anywhere.
+First release, published to <https://cauberome.github.io/pdf-toolkit/>.
+
+A browser-only PDF workbench: every document is processed in the tab that
+opened it, and no document byte or filename is sent anywhere. The deployed site
+makes no third-party request of any kind, which is asserted by a test rather
+than only claimed here.
 
 ### Added
 
@@ -64,11 +68,15 @@ Processing engine and infrastructure:
   publishes `dist/` to GitHub Pages from `main`.
 - `README.md` covering setup, commands, supported formats, privacy behavior,
   limitations, tests, and deployment.
-- Playwright end-to-end suite (23 tests, Chromium) covering real canvas
+- Playwright end-to-end suite (24 tests, Chromium) covering real canvas
   rasterization, all seven workflows driven through the UI, recoverable
-  failures, direct hash routes, and the no-third-party-request property. Each
-  of the five pre-release defects has a test proven to fail when its fix is
+  failures, direct hash routes, a phone-width layout check, and the
+  no-third-party-request property. Each of the five pre-release defects, and
+  the mobile overflow above, has a test proven to fail when its fix is
   reverted. CI installs Chromium and runs the suite before deploying.
+- The suite can also run against a live deployment rather than the dev server,
+  which is how the published site is accepted:
+  `PLAYWRIGHT_BASE_URL=https://<user>.github.io/pdf-toolkit/ npm run test:e2e`.
 
 ### Fixed
 
@@ -91,6 +99,11 @@ engine, before any public release:
 - The page icon referenced `/vite.svg`, an absolute path to a file that did not
   exist, and 404'd under any GitHub Pages project path. Replaced with a real
   repository-relative `favicon.svg`.
+- The header navigation was 66px wider than a 390px viewport, so the whole page
+  scrolled sideways on a phone. The nav already asked to scroll internally, but
+  as a flex item it kept `min-width: auto` and refused to shrink below its
+  content, so the overflow rule never applied. The responsive pass was done
+  when there were four tools; Compress, Crop, and Add Pages tipped the row over.
 
 ### Changed
 
@@ -100,11 +113,22 @@ engine, before any public release:
 - Adding images to a PDF embeds them directly rather than building, saving, and
   re-parsing an intermediate PDF.
 
+### Verified at release
+
+- `npm run verify` — ESLint 0 problems, `tsc --noEmit` 0 errors, Vitest 128/128
+  across 10 files, production build succeeded.
+- `npm run test:e2e` — 24/24 in Chromium, locally and in CI.
+- The deployed site at <https://cauberome.github.io/pdf-toolkit/> was accepted
+  by running the 13 workflow tests against it: all seven tools produce their
+  correct download, every hash route loads directly, the phone-width layout
+  does not scroll sideways, and no third-party request is made.
+- The live bundle serves relative asset paths, contains no reference to
+  `googleapis` or `gstatic`, and ships no font file.
+
 ### Known limitations
 
 - End-to-end tests run in Chromium only. The plan also calls for Firefox and
-  WebKit, whose browser builds are not installed.
-- The deployed GitHub Pages site has not been checked, because the project has
-  not been published to a remote yet.
+  WebKit, whose browser builds are not installed; adding them is a browser
+  download away.
 - Compression target size is best-effort, and compression always rasterizes.
 - Password removal, OCR, and Office-format conversion are out of scope.

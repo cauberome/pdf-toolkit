@@ -2,6 +2,8 @@ So
 
 # PDF Toolkit
 
+**Live: <https://cauberome.github.io/pdf-toolkit/>**
+
 A privacy-first PDF workbench that runs entirely in the browser. Merge, edit,
 split, convert, compress, crop, and add pages without a single document byte
 leaving the machine.
@@ -146,8 +148,18 @@ structurally cannot:
   merely passing.
 - **All seven workflows** driven through the UI: choose files, operate the
   controls, and assert the resulting download and its filename.
-- **Recoverable failures** and the privacy property — no third-party request is
-  made while loading or using the app.
+- **Recoverable failures**, a phone-width layout check, and the privacy
+  property — no third-party request is made while loading or using the app.
+
+The suite can also run against a live deployment instead of the dev server,
+which is how the published site is accepted:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://cauberome.github.io/pdf-toolkit/ npm run test:e2e
+```
+
+Only the workflow specs run that way; the rasterization specs need the dev-only
+harness page.
 
 Two coverage limits remain:
 
