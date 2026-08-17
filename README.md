@@ -1,5 +1,3 @@
-So
-
 # PDF Toolkit
 
 **Live: <https://cauberome.github.io/pdf-toolkit/>**
@@ -18,13 +16,43 @@ performed by JavaScript running in the tab that has the file open.
 | Merge PDFs         | `#/merge`     | Combine two or more PDFs in a chosen order into`merged.pdf`.                   |
 | Delete and reorder | `#/edit`      | Select pages to remove and reorder the ones kept. At least one page must remain. |
 | Split PDF          | `#/split`     | One file per page, or custom groups such as`1-3;4,6;7-9`.                      |
-| Convert            | `#/convert`   | JPG/PNG/WebP images into one PDF, or selected PDF pages out as PNG/JPEG.         |
+| Convert            | `#/convert`   | JPG/PNG/WebP images into one PDF, selected PDF pages out as PNG/JPEG, or a text-based PDF into editable Word/Markdown. |
 | Compress PDF       | `#/compress`  | Automatic quality preset or best-effort target size. Rasterizes pages.           |
 | Crop PDF           | `#/crop`      | Visual top/right/bottom/left margins applied to selected pages or all pages.     |
 | Add Pages          | `#/add-pages` | Insert blank pages, every page of another PDF, or ordered images.                |
 
 Routes are hash-based so a direct link works on GitHub Pages without any
 server-side rewrite rules.
+
+### PDF to Word and Markdown
+
+The Convert workspace has a third tab, **PDF to Word / Markdown**, which turns a
+text-based PDF into an editable document. Choose one PDF, keep **Whole PDF** or
+enter an inclusive **Page range**, press **Analyze document**, then download
+**Word**, **Markdown**, or **Both** — both formats arrive in one ZIP. The
+analysis happens once and every download is written from it, so asking for both
+formats never reads the PDF twice.
+
+What comes across: headings, paragraphs, ordered and unordered lists,
+conservative tables, bold and italic, `http`, `https`, and `mailto` links,
+Unicode text, and a page break at each source page boundary. Structure is
+reconstructed from the text layer — tagged roles when the PDF has usable ones,
+otherwise font sizes and positions — and anything ambiguous stays a paragraph
+rather than becoming an invented table or heading.
+
+What does not: figures, page images, equations (which flatten to whatever text
+they contain), form fields, footnotes, annotations, and exact page layout. The
+output is editable text in reading order, not a facsimile.
+
+The PDF must have a text layer. A scan has none, so it is refused with a
+message saying OCR would be required; this tool does not perform OCR, and never
+offers an empty file in place of text it could not read. If the range or the
+export fails, the file and the page range stay exactly as they were.
+
+The Word writer (the `docx` package) is imported only when the tab is used, so
+it never enters the initial bundle — someone merging two PDFs never downloads
+it. Like everything else here, the document is generated in the tab: no upload,
+no template fetch, no service.
 
 ## Requirements
 
@@ -73,6 +101,8 @@ dependencies; the lockfile is what CI installs from.
 - PNG or JPEG from PDF-to-Images, rendered at 1x (≈108 DPI) or 2x (≈216 DPI).
   A PDF point is 1/72 inch, so the 1x preset renders at a 1.5 viewport scale to
   avoid a soft 72 DPI image.
+- DOCX and UTF-8 Markdown from PDF-to-Word/Markdown, singly or as a pair in one
+  ZIP. The Markdown is GitHub-flavored, with `<!-- Page n -->` boundaries.
 - ZIP whenever an operation produces two or more files. A single generated file
   always downloads directly.
 
@@ -81,7 +111,12 @@ dependencies; the lockfile is what CI installs from.
 `merged.pdf`, `converted-images.pdf`, `<source>-edited.pdf`,
 `<source>-part-01.pdf`, `<source>-page-001.png` / `.jpg`,
 `<source>-compressed.pdf`, `<source>-cropped.pdf`, `<source>-pages-added.pdf`,
-`<source>-split.zip`, `<source>-images.zip`.
+`<source>-split.zip`, `<source>-images.zip`, `<source>.docx`, `<source>.md`,
+`<source>-documents.zip`.
+
+A converted page range adds `-pages-<start>-<end>` before the extension, using
+one-based page numbers: `report-pages-2-4.docx`, `report-pages-2-4.md`,
+`report-pages-2-4-documents.zip`.
 
 Source names are sanitized before they reach a download attribute: path
 separators, characters illegal in filenames, and control characters are
@@ -120,7 +155,14 @@ replaced, and a name with nothing recognisable left falls back to `document`.
   vector-preserving — it adjusts the crop box rather than re-rendering.
 - **Password-protected PDFs are rejected**, with a message saying to remove the
   password elsewhere first. Password removal is out of scope.
-- **No OCR, no Office conversion, no accounts, no cloud storage, no analytics.**
+- **Conversion to Word/Markdown needs a text layer.** An image-only scan is
+  refused with an OCR-required message rather than an empty document. The
+  output is editable text in reading order, not a layout-identical copy:
+  figures and page images are omitted, equations flatten to their text, and
+  at most two columns are recognised, read left column first.
+- **No OCR, no accounts, no cloud storage, no analytics.** Conversion out of
+  PDF covers Word and Markdown only; converting *into* PDF from Office formats
+  is out of scope.
 - **Document size is bounded by the browser tab, not by an arbitrary limit.** A
   document too large to process reports a recoverable memory error suggesting
   closing other tabs or splitting the work, and the workspace keeps its state.
@@ -135,6 +177,10 @@ copy, merge/retained-page order, split grouping, image ordering and dimensions,
 ZIP packaging and the one-file-versus-ZIP rule, compression attempt ordering
 and target reporting, crop geometry, page insertion, and component behaviour
 for drag/drop, keyboard selection, progress, errors, reset, and download states.
+It also covers the conversion path end to end without a browser: the layout
+rules on positioned tokens, extraction from real PDFs opened by pdf.js under
+jsdom, exact Markdown bytes, the generated DOCX package read back with JSZip,
+and the conversion panel's state machine.
 
 `npm run test:e2e` runs Playwright against Chromium. It covers what jsdom
 structurally cannot:
@@ -148,6 +194,12 @@ structurally cannot:
   merely passing.
 - **All seven workflows** driven through the UI: choose files, operate the
   controls, and assert the resulting download and its filename.
+- **Document conversion**, where the saved bytes are opened rather than the
+  filename trusted: the Markdown carries both pages and their page comments,
+  the DOCX is unzipped and its `word/document.xml` inspected, a 2-to-2 range
+  produces an archive holding exactly one DOCX and one Markdown with the
+  selected page and not the unselected one, and an image-only scan produces
+  the OCR message with the document still loaded.
 - **Recoverable failures**, a phone-width layout check, and the privacy
   property — no third-party request is made while loading or using the app.
 
@@ -208,7 +260,13 @@ src/
     naming.ts            Default output names
     pdfEngine.ts         mergePdfs, editPdf, splitPdf, imagesToPdf
     advancedPdfEngine.ts compressPdf, cropPdf, addPagesToPdf, page geometry
-    pdfRenderer.ts       pdf.js worker setup, thumbnails, pdfToImages
+    pdfDocument.ts       The one pdf.js worker setup and document opener
+    pdfRenderer.ts       Thumbnails and pdfToImages
+    documentModel.ts     Format-neutral document model, scope, report
+    layoutAnalyzer.ts    Positioned tokens to semantic blocks (no pdf.js)
+    pdfTextExtractor.ts  pdf.js adapter building ExtractedDocument values
+    markdownExporter.ts  Deterministic GitHub-flavored Markdown
+    docxExporter.ts      DOCX writer, imported lazily in the browser
     splitParser.ts       One-based split-expression parsing
     download.ts          Direct download, ZIP packaging, delivery planning
   components/   Dashboard, shared controls, and one workspace per tool

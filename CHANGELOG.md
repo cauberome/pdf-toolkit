@@ -99,6 +99,48 @@ contiguous page range.
   request off the origin. The phone-width check now also covers the Convert
   workspace with the new tab selected.
 
+### Verified so far (unreleased)
+
+- `npm run verify` — ESLint 0 problems, `tsc --noEmit` 0 errors, Vitest 209/209
+  across 16 files, production build succeeded. `docx` still splits into its own
+  ~411 kB chunk rather than joining the app chunk.
+- `npm run test:e2e` — 29/29 in Chromium, up from 24 at 1.0.0.
+- `git diff --check` — clean.
+- Browser acceptance on the dev server, driven through the UI with a temporary
+  Playwright harness, on a document holding a title, a sub-heading, a paragraph
+  wrapped over two lines, a bullet list, a numbered list, a three-row table, a
+  safe link, a `mailto:` link, a `javascript:` link, and a second page of prose
+  in two columns:
+  - The report counted 2 pages, 2 headings, 4 paragraphs, 2 lists, 2 tables,
+    and 2 links. Both lists and the table came through; the wrapped lines
+    merged into one paragraph.
+  - Reading order on the two-column page was the whole left column, then the
+    whole right column.
+  - The `javascript:` target appears nowhere in the DOCX package or its
+    relationships, while its visible text survives. The `https:` and `mailto:`
+    targets became real relationships.
+  - The generated `report.docx` was opened with macOS `textutil` — a reader
+    with no connection to the library that wrote it — and rendered headings,
+    the merged paragraph, both lists, the table contents, the links, and the
+    page break. `textutil` draws the numbered list as bullets, which is its own
+    simplification: in the package, the ordered list references a `decimal`
+    numbering definition and the bullet list a `bullet` one.
+  - Page range 2 to 2 produced `quarterly-pages-2-2-documents.zip` containing
+    exactly `quarterly-pages-2-2.docx` and `quarterly-pages-2-2.md`, holding
+    the second page only.
+  - Keyboard only: Tab reaches the header, the three Convert tabs, Reset, both
+    page-mode radios, and **Analyze document**; Enter runs the analysis, and
+    tabbing on to **Download Markdown** and pressing Enter saves the file.
+    Every stop reports a name.
+- A two-column layout whose lines share baselines across three or more rows is
+  read as a table rather than as columns. That is the documented conservative
+  rule — two anchors over three rows — and prose columns, whose lines do not
+  line up, are read as columns.
+
+Still outstanding before release: opening a generated DOCX in Microsoft Word or
+LibreOffice (neither is installed here) and viewing the Markdown in a GFM
+renderer; the push, CI, and live-site acceptance.
+
 ### Fixed
 
 - The Convert tab row was 10 pixels wider than a 390-pixel viewport once the
