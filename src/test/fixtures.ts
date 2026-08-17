@@ -6,7 +6,7 @@
  */
 
 import { deflateSync } from 'node:zlib';
-import { PDFDocument, degrees } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFString, StandardFonts, degrees } from 'pdf-lib';
 
 const PAGE_HEIGHT = 400;
 const FIRST_PAGE_WIDTH = 100;
@@ -54,6 +54,78 @@ export async function pageWidths(bytes: Uint8Array): Promise<number[]> {
 export async function pageSizes(bytes: Uint8Array): Promise<Array<[number, number]>> {
   const doc = await PDFDocument.load(bytes);
   return doc.getPages().map((page) => [Math.round(page.getWidth()), Math.round(page.getHeight())]);
+}
+
+// ---------------------------------------------------------------------------
+// Text documents
+// ---------------------------------------------------------------------------
+
+/** One drawn line of text, positioned in PDF user space (y increases upward). */
+export type TextFixtureLine = {
+  text: string;
+  x: number;
+  y: number;
+  size?: number;
+  bold?: boolean;
+  italic?: boolean;
+  /** Adds a link annotation covering the drawn text. */
+  href?: string;
+};
+
+export const TEXT_PAGE_WIDTH = 612;
+export const TEXT_PAGE_HEIGHT = 792;
+
+/**
+ * Builds a text-bearing PDF from explicit draw instructions, so a test can
+ * place text in one column, two columns, list indentation, repeated margins,
+ * or table-like anchors and assert what the analyzer makes of it.
+ *
+ * Standard fonts are used deliberately: they carry real names such as
+ * `Helvetica-Bold`, which is where bold and italic run styling comes from.
+ */
+export async function createTextPdf(pages: TextFixtureLine[][]): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const fonts = {
+    regular: await doc.embedFont(StandardFonts.Helvetica),
+    bold: await doc.embedFont(StandardFonts.HelveticaBold),
+    italic: await doc.embedFont(StandardFonts.HelveticaOblique),
+  };
+
+  for (const lines of pages) {
+    const page = doc.addPage([TEXT_PAGE_WIDTH, TEXT_PAGE_HEIGHT]);
+    const annotations = [];
+
+    for (const line of lines) {
+      const size = line.size ?? 11;
+      const font = line.bold ? fonts.bold : line.italic ? fonts.italic : fonts.regular;
+      page.drawText(line.text, { x: line.x, y: line.y, size, font });
+
+      if (line.href) {
+        const width = font.widthOfTextAtSize(line.text, size);
+        annotations.push(
+          doc.context.register(
+            doc.context.obj({
+              Type: 'Annot',
+              Subtype: 'Link',
+              Rect: [line.x, line.y, line.x + width, line.y + size],
+              Border: [0, 0, 0],
+              A: {
+                Type: 'Action',
+                S: 'URI',
+                URI: PDFString.of(line.href),
+              },
+            }),
+          ),
+        );
+      }
+    }
+
+    if (annotations.length > 0) {
+      page.node.set(PDFName.of('Annots'), doc.context.obj(annotations));
+    }
+  }
+
+  return await doc.save();
 }
 
 /**

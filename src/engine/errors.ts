@@ -17,6 +17,7 @@ export type ProcessingErrorCode =
   | 'IMAGE_DECODE_FAILED'
   | 'PAGE_OUT_OF_RANGE'
   | 'INVALID_SELECTION'
+  | 'NO_EXTRACTABLE_TEXT'
   | 'RENDER_FAILED'
   | 'OUT_OF_MEMORY'
   | 'UNKNOWN';
@@ -104,6 +105,8 @@ const MESSAGES: Record<ProcessingErrorCode, (subject: string) => string> = {
   IMAGE_DECODE_FAILED: (s) => `${s} could not be decoded. The image may be damaged.`,
   PAGE_OUT_OF_RANGE: (s) => `A selected page does not exist in ${s}. Check the page numbers.`,
   INVALID_SELECTION: (s) => `The current selection for ${s} is not valid. Adjust it and try again.`,
+  NO_EXTRACTABLE_TEXT: (s) =>
+    `${s} has no extractable text. It may be a scanned document and requires OCR, which this tool does not perform yet.`,
   RENDER_FAILED: (s) => `${s} could not be rendered in this browser. Try a smaller document.`,
   OUT_OF_MEMORY: (s) =>
     `${s} is too large for this browser to process. Close other tabs or split the work into smaller parts, then try again.`,

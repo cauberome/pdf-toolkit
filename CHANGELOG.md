@@ -21,6 +21,27 @@ contiguous page range.
   recoverable `INVALID_SELECTION`. `summarizeDocument` reports page, heading,
   paragraph, list, table, and link counts plus one-based empty page numbers.
 
+- Deterministic layout reconstruction (`src/engine/layoutAnalyzer.ts`), which
+  turns positioned glyphs into blocks with no PDF or React dependency: lines
+  from baseline proximity, spaces from glyph gaps, at most two columns from a
+  persistent vertical gutter (left column read in full before the right),
+  headings from the page's own body size with at most three levels, lists from
+  stable indentation, and tables only from two or more column anchors holding
+  across three or more rows. Wrapped lines merge, a soft hyphen before a
+  lowercase continuation disappears, and a trailing dash stays. Ambiguity always
+  resolves to a paragraph — a two-row aligned layout stays prose rather than
+  becoming an invented table.
+- Text extraction (`src/engine/pdfTextExtractor.ts`): positioned text, bold and
+  italic taken from the real embedded font names, tagged structure-tree heading
+  levels when they map cleanly, link annotations, and per-page progress.
+  Running headers and footers are dropped only on document-level evidence
+  (margin band, at least three pages, at least 60% of the selection). A PDF with
+  no text layer raises the new recoverable `NO_EXTRACTABLE_TEXT` rather than
+  producing an empty download, and the pdf.js document is always released.
+- Only `http`, `https`, and `mailto` link targets survive into an exported
+  document; every other scheme keeps its visible text and loses the target,
+  since exports are opened later, outside this tool.
+
 ### Changed
 
 - pdf.js configuration and document opening now live in one module
