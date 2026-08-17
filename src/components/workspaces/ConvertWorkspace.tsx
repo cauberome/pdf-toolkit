@@ -551,6 +551,11 @@ export const ConvertWorkspace: React.FC = () => {
           border-radius: var(--radius-md);
           border: 1px solid var(--border-subtle);
           width: fit-content;
+          /* Three tabs, one of them long, are wider than a phone. The row
+             wraps rather than pushing the whole page sideways; nothing is
+             hidden, so every tab stays reachable. */
+          max-width: 100%;
+          flex-wrap: wrap;
         }
         .convert-tab {
           display: inline-flex;

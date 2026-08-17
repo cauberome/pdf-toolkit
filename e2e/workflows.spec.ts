@@ -7,8 +7,9 @@
  */
 
 import { test, expect, type Download, type Page } from '@playwright/test';
+import JSZip from 'jszip';
 import { createPngBytes } from '../src/test/fixtures';
-import { createSolidPdf } from './support/fixtures';
+import { CONVERSION_FIXTURE_PAGES, createSolidPdf, createTextPdf } from './support/fixtures';
 
 type UploadFile = { name: string; mimeType: string; buffer: Buffer };
 
@@ -36,6 +37,40 @@ async function downloadFrom(page: Page, name: RegExp): Promise<Download> {
   await expect(button).toBeEnabled({ timeout: 20_000 });
   const [download] = await Promise.all([page.waitForEvent('download'), button.click()]);
   return download;
+}
+
+/**
+ * Reads the bytes the browser actually saved. Asserting the filename alone
+ * would pass just as happily for an empty or malformed file, which is the one
+ * failure a conversion is most likely to produce.
+ */
+async function readDownload(download: Download): Promise<Buffer> {
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks);
+}
+
+/** Opens the Convert workspace on its document-conversion tab with a PDF loaded. */
+async function openDocumentConversion(page: Page, file: UploadFile): Promise<void> {
+  await page.goto('#/convert');
+  await page.getByRole('tab', { name: /PDF to Word.*Markdown/i }).click();
+  await chooseFiles(page, [file]);
+  await expect(page.getByRole('button', { name: 'Analyze document' })).toBeEnabled({
+    timeout: 20_000,
+  });
+}
+
+/** Runs the analysis and waits for the report the downloads are generated from. */
+async function analyzeDocument(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Analyze document' }).click();
+  await expect(page.getByRole('button', { name: 'Download Word' })).toBeEnabled({
+    timeout: 30_000,
+  });
+}
+
+async function conversionFixture(name = 'report.pdf'): Promise<UploadFile> {
+  return pdfFile(name, await createTextPdf(CONVERSION_FIXTURE_PAGES));
 }
 
 test.describe('workspace workflows', () => {
@@ -120,6 +155,103 @@ test.describe('workspace workflows', () => {
   });
 });
 
+test.describe('document conversion', () => {
+  test('a text PDF converts to Markdown carrying every page', async ({ page }) => {
+    await openDocumentConversion(page, await conversionFixture());
+    await analyzeDocument(page);
+
+    const download = await downloadFrom(page, /Download Markdown/i);
+    expect(download.suggestedFilename()).toBe('report.md');
+
+    const markdown = (await readDownload(download)).toString('utf8');
+    expect(markdown).toContain('Report title');
+    expect(markdown).toContain('First page body text.');
+    expect(markdown).toContain('Second page heading');
+    expect(markdown).toContain('Range-only body text.');
+    // Page boundaries survive the round trip, not just the words.
+    expect(markdown).toContain('<!-- Page 2 -->');
+  });
+
+  test('a text PDF converts to a Word package carrying every page', async ({ page }) => {
+    await openDocumentConversion(page, await conversionFixture());
+    await analyzeDocument(page);
+
+    const download = await downloadFrom(page, /Download Word/i);
+    expect(download.suggestedFilename()).toBe('report.docx');
+
+    const zip = await JSZip.loadAsync(await readDownload(download));
+    const xml = await zip.file('word/document.xml')!.async('string');
+
+    expect(xml).toContain('First page body text.');
+    expect(xml).toContain('Range-only body text.');
+    expect(xml).toContain('Heading1');
+    // A real page break, so the second source page starts where it did.
+    expect(xml).toContain('w:type="page"');
+  });
+
+  test('a page range exports both formats in one archive', async ({ page }) => {
+    await openDocumentConversion(page, await conversionFixture());
+
+    await page.getByRole('radio', { name: 'Page range' }).click();
+    await page.getByRole('spinbutton', { name: 'Start page' }).fill('2');
+    await page.getByRole('spinbutton', { name: 'End page' }).fill('2');
+    await analyzeDocument(page);
+
+    const download = await downloadFrom(page, /Download Both/i);
+    expect(download.suggestedFilename()).toBe('report-pages-2-2-documents.zip');
+
+    const archive = await JSZip.loadAsync(await readDownload(download));
+    expect(Object.keys(archive.files).sort()).toEqual([
+      'report-pages-2-2.docx',
+      'report-pages-2-2.md',
+    ]);
+
+    const markdown = await archive.file('report-pages-2-2.md')!.async('string');
+    expect(markdown).toContain('Range-only body text.');
+    // The unselected first page must be absent, or the range meant nothing.
+    expect(markdown).not.toContain('First page body text.');
+
+    const inner = await JSZip.loadAsync(
+      await archive.file('report-pages-2-2.docx')!.async('uint8array'),
+    );
+    const xml = await inner.file('word/document.xml')!.async('string');
+    expect(xml).toContain('Range-only body text.');
+    expect(xml).not.toContain('First page body text.');
+  });
+
+  test('an image-only scan explains OCR and keeps the document loaded', async ({ page }) => {
+    await openDocumentConversion(page, pdfFile('scan.pdf', await createSolidPdf(400, 600, 2)));
+
+    await page.getByRole('button', { name: 'Analyze document' }).click();
+
+    await expect(page.getByText(/has no extractable text/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/OCR/).first()).toBeVisible();
+
+    // Recoverable: the file and its controls survive, and nothing downloadable
+    // is offered in place of the text that could not be read.
+    // Exact, because the error message names the file too.
+    await expect(page.getByText('scan.pdf', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Analyze document' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Download Word' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Download Markdown' })).toHaveCount(0);
+  });
+
+  test('converting a document makes no third-party request', async ({ page, baseURL }) => {
+    const origin = new URL(baseURL!).origin;
+    const external: string[] = [];
+    page.on('request', (request) => {
+      if (!request.url().startsWith(origin)) external.push(request.url());
+    });
+
+    await openDocumentConversion(page, await conversionFixture());
+    await analyzeDocument(page);
+    await downloadFrom(page, /Download Word/i);
+
+    // Word generation loads its writer lazily; that chunk must come from here.
+    expect(external).toEqual([]);
+  });
+});
+
 test.describe('recoverable failures', () => {
   test('a mislabeled file is refused with a readable message', async ({ page }) => {
     await page.goto('#/merge');
@@ -190,6 +322,17 @@ test.describe('deployment shape', () => {
       // it scrolls internally, but only if it is allowed to shrink.
       expect(overflow, `horizontal overflow on "${route || 'dashboard'}"`).toBeLessThanOrEqual(1);
     }
+
+    // The Convert workspace is checked with its widest tab selected: three
+    // tabs, one of them long, is exactly the row that tips over first.
+    await page.goto('#/convert');
+    await page.getByRole('tab', { name: /PDF to Word.*Markdown/i }).click();
+    await expect(page.getByText(/Drop a text-based PDF here/i)).toBeVisible();
+
+    const convertOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(convertOverflow, 'horizontal overflow on "#/convert"').toBeLessThanOrEqual(1);
 
     // The primary action must still be reachable, not merely present.
     await page.goto('#/merge');

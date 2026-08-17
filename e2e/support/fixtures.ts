@@ -7,7 +7,7 @@
  * assertions in the test process where pdf-lib is already available.
  */
 
-import { PDFDocument, degrees, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib';
 
 export function toBase64(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString('base64');
@@ -132,6 +132,58 @@ export async function createRotatedPdf(
   doc.addPage([width, height]).setRotation(degrees(angle));
   return await doc.save();
 }
+
+export type TextFixtureLine = {
+  text: string;
+  x: number;
+  y: number;
+  size?: number;
+  bold?: boolean;
+};
+
+/**
+ * A document with a real text layer, drawn with the standard fonts every
+ * viewer already has.
+ *
+ * `createSolidPdf` is its opposite number for conversion tests: it has page
+ * graphics and no text at all, which is what a scan looks like to pdf.js, so
+ * the two fixtures separate "converts" from "needs OCR".
+ */
+export async function createTextPdf(pages: TextFixtureLine[][]): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const regular = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+  for (const lines of pages) {
+    const page = doc.addPage([612, 792]);
+    for (const line of lines) {
+      page.drawText(line.text, {
+        x: line.x,
+        y: line.y,
+        size: line.size ?? 11,
+        font: line.bold ? bold : regular,
+      });
+    }
+  }
+
+  return await doc.save();
+}
+
+/**
+ * The two-page document the conversion workflows run on. Each page carries
+ * text found nowhere else, so an assertion can tell a whole-document export
+ * from a one-page range without counting anything.
+ */
+export const CONVERSION_FIXTURE_PAGES: TextFixtureLine[][] = [
+  [
+    { text: 'Report title', x: 60, y: 720, size: 22, bold: true },
+    { text: 'First page body text.', x: 60, y: 680 },
+  ],
+  [
+    { text: 'Second page heading', x: 60, y: 720, size: 18, bold: true },
+    { text: 'Range-only body text.', x: 60, y: 680 },
+  ],
+];
 
 /** Bytes that are small and clearly not a PDF, for validation paths. */
 export function createMislabeledBytes(): Uint8Array {

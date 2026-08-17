@@ -88,6 +88,23 @@ contiguous page range.
   happens in the tab, figures and equations are omitted, the result is editable
   text in reading order rather than a layout-identical copy, and a scan needs
   OCR that this tool does not perform.
+- Five Chromium end-to-end tests for the new tab, which open the saved bytes
+  rather than trusting the filename: the Markdown download carries both pages
+  and their `<!-- Page n -->` boundaries; the Word download is a real package
+  whose `word/document.xml` holds both pages, a `Heading1`, and a page break;
+  a 2-to-2 range produces `report-pages-2-2-documents.zip` containing exactly
+  one DOCX and one Markdown, each holding the second page and *not* the first;
+  an image-only scan produces the OCR message with the file still loaded and no
+  download offered; and a full conversion, lazy Word writer included, makes no
+  request off the origin. The phone-width check now also covers the Convert
+  workspace with the new tab selected.
+
+### Fixed
+
+- The Convert tab row was 10 pixels wider than a 390-pixel viewport once the
+  third tab was added, scrolling the whole page sideways. The row now wraps
+  instead of overflowing, so no tab is pushed out of reach. Caught by extending
+  the phone-width test to the Convert workspace rather than by looking at it.
 
 ### Changed
 
