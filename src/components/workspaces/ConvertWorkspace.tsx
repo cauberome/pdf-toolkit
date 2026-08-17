@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Image as ImageIcon, FileText, Download, RotateCcw } from 'lucide-react';
+import { Image as ImageIcon, FileText, FileType2, Download, RotateCcw } from 'lucide-react';
 import { Dropzone } from '../common/Dropzone';
 import { OrderedFileList, FileListItem } from '../common/OrderedFileList';
 import { ThumbnailGrid, PageItem } from '../common/ThumbnailGrid';
 import { ProgressBar } from '../common/ProgressBar';
 import { StatusAlert } from '../common/StatusAlert';
 import { Modal } from '../common/Modal';
+import { PdfDocumentConversionPanel } from './PdfDocumentConversionPanel';
 import { PdfSource, ImageFormat } from '../../engine/types';
 import { readFileAsUint8Array, assertValidPdfBytes, urlTracker } from '../../engine/validation';
 import { renderPdfThumbnails, pdfToImages } from '../../engine/pdfRenderer';
@@ -15,7 +16,7 @@ import { IMAGES_PDF_FILENAME, pageImageFilename, imagesZipFilename } from '../..
 import { toUserMessage } from '../../engine/errors';
 
 export const ConvertWorkspace: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'img2pdf' | 'pdf2img'>('img2pdf');
+  const [activeTab, setActiveTab] = useState<'img2pdf' | 'pdf2img' | 'pdf2doc'>('img2pdf');
 
   // --- Images to PDF State ---
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -232,7 +233,7 @@ export const ConvertWorkspace: React.FC = () => {
       setImageFiles([]);
       setImgProgress(0);
       setImgMessage('');
-    } else {
+    } else if (activeTab === 'pdf2img') {
       setPdfSource(null);
       setPdfPages([]);
       setPdfProgress(0);
@@ -251,7 +252,14 @@ export const ConvertWorkspace: React.FC = () => {
     status: 'ready',
   }));
 
-  const hasContent = activeTab === 'img2pdf' ? imageFiles.length > 0 : !!pdfSource;
+  // The document-conversion tab owns its file, its analysis, and its own reset
+  // control, so the workspace reset must not claim to speak for it.
+  const hasContent =
+    activeTab === 'img2pdf'
+      ? imageFiles.length > 0
+      : activeTab === 'pdf2img'
+        ? !!pdfSource
+        : false;
   const keptPdfPagesCount = pdfPages.filter(p => p.selected).length;
 
   return (
@@ -265,7 +273,8 @@ export const ConvertWorkspace: React.FC = () => {
           <div>
             <h1 className="workspace-title">Convert Document & Images</h1>
             <p className="workspace-subtitle">
-              Convert image files into PDF or extract PDF pages as crisp images.
+              Convert image files into PDF, extract PDF pages as crisp images, or turn a
+              text-based PDF into an editable Word or Markdown document.
             </p>
           </div>
         </div>
@@ -313,6 +322,21 @@ export const ConvertWorkspace: React.FC = () => {
         >
           <FileText size={18} />
           <span>PDF to Images</span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'pdf2doc'}
+          className={`convert-tab ${activeTab === 'pdf2doc' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('pdf2doc');
+            setErrorMessage(null);
+            setSuccessMessage(null);
+          }}
+        >
+          <FileType2 size={18} />
+          <span>PDF to Word / Markdown</span>
         </button>
       </div>
 
@@ -442,6 +466,13 @@ export const ConvertWorkspace: React.FC = () => {
             {(isLoadingPdf || isExportingImages) && (
               <ProgressBar percentage={pdfProgress} message={pdfProgressMsg} />
             )}
+          </div>
+        )}
+
+        {/* TAB 3: PDF to Word / Markdown */}
+        {activeTab === 'pdf2doc' && (
+          <div className="tab-pane">
+            <PdfDocumentConversionPanel />
           </div>
         )}
 

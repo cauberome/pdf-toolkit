@@ -68,6 +68,26 @@ contiguous page range.
   initial application chunk — verified against a production build, where it
   splits into its own ~411 kB chunk and adds ~3 kB to the app chunk. Someone
   merging two PDFs never downloads a Word writer.
+- A third Convert tab, **PDF to Word / Markdown**
+  (`src/components/workspaces/PdfDocumentConversionPanel.tsx`): choose one PDF,
+  keep the whole document or enter an inclusive one-based page range, analyze
+  once, then download Word, Markdown, or both in a ZIP. Every download is
+  serialized from the analysis already in memory, so asking for both formats
+  never reads the PDF twice. The report names what was found — pages, headings,
+  paragraphs, lists, tables, links — and lists any page with no extractable
+  text by its one-based number, so an empty stretch of output has a stated
+  cause.
+- The range is refused before it reaches the engine: a start below page 1, an
+  end past the page count, and an end before the start each disable **Analyze
+  document** and say which rule was broken. Changing the mode or either number
+  discards the previous report rather than letting a download describe pages
+  that were never analyzed. A failed analysis or export keeps the file, the
+  page mode, and the typed range exactly as they were, which is what makes a
+  scanned PDF an explanation rather than a dead end.
+- Standing notices in that tab, shown before any file is chosen: conversion
+  happens in the tab, figures and equations are omitted, the result is editable
+  text in reading order rather than a layout-identical copy, and a scan needs
+  OCR that this tool does not perform.
 
 ### Changed
 
@@ -76,6 +96,10 @@ contiguous page range.
   rendering and text extraction share the same locally bundled worker, the same
   defensive byte copy (pdf.js detaches the buffer it is handed), and the same
   typed-error boundary. `pdfRenderer.ts` behavior is unchanged.
+- The Convert workspace now hosts three tabs, and its reset button no longer
+  claims to speak for all of them: the document-conversion tab owns its file,
+  its analysis, and its own reset control, because the parent cannot know when
+  an extraction is in flight there. The two image tabs are untouched.
 - Unit tests can now open real documents with pdf.js under jsdom. jsdom has no
   `Worker`, so pdf.js imports its worker module directly and cannot use Vite's
   `?url` server path; the Vitest config aliases that one import to a module

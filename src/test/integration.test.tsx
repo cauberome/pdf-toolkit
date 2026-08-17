@@ -66,10 +66,22 @@ describe('App Route Navigation & Workspaces Integration', () => {
     expect(screen.getByRole('tab', { name: /Images to PDF/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /PDF to Images/i })).toBeInTheDocument();
 
+    expect(screen.getByRole('tab', { name: /PDF to Word.*Markdown/i })).toBeInTheDocument();
+
     // Click PDF to Images tab
     const pdfToImgTab = screen.getByRole('tab', { name: /PDF to Images/i });
     fireEvent.click(pdfToImgTab);
     expect(screen.getByText(/Extract PDF pages as PNG or JPEG images/i)).toBeInTheDocument();
+
+    // Click PDF to Word / Markdown tab. Its call to action and its standing
+    // privacy and limitation notices belong to the panel, not the workspace,
+    // so seeing them here proves the third tab really renders that panel.
+    fireEvent.click(screen.getByRole('tab', { name: /PDF to Word.*Markdown/i }));
+    expect(screen.getByText(/Drop a text-based PDF here/i)).toBeInTheDocument();
+    expect(screen.getByText(/No page, filename, or byte of the document is uploaded/i)).toBeInTheDocument();
+    expect(screen.getByText(/figures.*omitted/i)).toBeInTheDocument();
+    expect(screen.getByText(/not a layout-identical copy/i)).toBeInTheDocument();
+    expect(screen.getByText(/needs OCR/i)).toBeInTheDocument();
   });
 
   it('navigates to Compress workspace on hash change', async () => {
