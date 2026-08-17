@@ -21,6 +21,19 @@ contiguous page range.
   recoverable `INVALID_SELECTION`. `summarizeDocument` reports page, heading,
   paragraph, list, table, and link counts plus one-based empty page numbers.
 
+### Changed
+
+- pdf.js configuration and document opening now live in one module
+  (`src/engine/pdfDocument.ts`) instead of being private to the renderer, so
+  rendering and text extraction share the same locally bundled worker, the same
+  defensive byte copy (pdf.js detaches the buffer it is handed), and the same
+  typed-error boundary. `pdfRenderer.ts` behavior is unchanged.
+- Unit tests can now open real documents with pdf.js under jsdom. jsdom has no
+  `Worker`, so pdf.js imports its worker module directly and cannot use Vite's
+  `?url` server path; the Vitest config aliases that one import to a module
+  resolving the same file to a `file://` URL. Application code is identical in
+  both environments.
+
 ## [1.0.0] - 2026-08-17
 
 First release, published to <https://cauberome.github.io/pdf-toolkit/>.

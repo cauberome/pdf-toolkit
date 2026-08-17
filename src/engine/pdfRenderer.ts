@@ -1,12 +1,6 @@
-import * as pdfjsLib from 'pdfjs-dist';
-// Bundled locally by Vite rather than fetched from a CDN, so no document byte
-// ever needs a network round trip and the app works from any base path.
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { PdfSource, PageThumbnail, ImageFormat } from './types';
-import { assertValidPdfBytes } from './validation';
+import { openPdfDocument } from './pdfDocument';
 import { ProcessingError, toProcessingError } from './errors';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 /**
  * A PDF point is 1/72 inch. Rendering at 1.0 would produce 72 DPI images,
@@ -51,20 +45,6 @@ export function thumbnailScale(
   return Math.min(maxDimension / pageWidth, maxDimension / pageHeight, maxScale);
 }
 
-/**
- * Opens a document with pdf.js. The byte array is copied because pdf.js
- * transfers ownership of the buffer to the worker, which would detach the
- * caller's copy and break every later operation on the same file.
- */
-async function openDocument(source: PdfSource) {
-  assertValidPdfBytes(source.bytes, source.name);
-  try {
-    return await pdfjsLib.getDocument({ data: source.bytes.slice(0) }).promise;
-  } catch (err) {
-    throw toProcessingError(err, 'CORRUPT_PDF', source.name);
-  }
-}
-
 function getCanvasContext(
   canvas: HTMLCanvasElement,
   alpha: boolean,
@@ -81,7 +61,7 @@ function getCanvasContext(
  * Get total page count of a PDF file using pdfjs-dist.
  */
 export async function getPdfPageCount(source: PdfSource): Promise<number> {
-  const pdfDoc = await openDocument(source);
+  const pdfDoc = await openPdfDocument(source);
   const numPages = pdfDoc.numPages;
   await pdfDoc.destroy();
   return numPages;
@@ -95,7 +75,7 @@ export async function renderPdfThumbnails(
   maxDimension = 260,
   onProgress?: (rendered: number, total: number) => void,
 ): Promise<PageThumbnail[]> {
-  const pdfDoc = await openDocument(source);
+  const pdfDoc = await openPdfDocument(source);
   const numPages = pdfDoc.numPages;
   const thumbnails: PageThumbnail[] = [];
 
@@ -151,7 +131,7 @@ export async function pdfToImages(
     throw new ProcessingError('INVALID_SELECTION', 'no pages selected', { fileName: source.name });
   }
 
-  const pdfDoc = await openDocument(source);
+  const pdfDoc = await openPdfDocument(source);
   const blobs: Blob[] = [];
   const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
   if (format === 'jpeg' && (!Number.isFinite(jpegQuality) || jpegQuality < 0.1 || jpegQuality > 1)) {
