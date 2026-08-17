@@ -56,6 +56,18 @@ contiguous page range.
   person reads.
 - New `NO_EXTRACTABLE_TEXT` error category, whose message names the file, says
   it has no extractable text, and explains that OCR would be required.
+- Word export (`src/engine/docxExporter.ts`) via the `docx` package, generated
+  entirely in the browser: `Heading1`–`Heading3` styles, bold and italic run
+  properties, ordered and unordered numbering definitions, native Word tables,
+  external hyperlinks for safe targets only, a page break at each source page
+  boundary, and Unicode text. The output carries no macros, no embedded fonts,
+  and no media, which a test asserts against the generated package rather than
+  trusting the library. Library and allocation failures are classified through
+  the existing typed errors, so an out-of-memory failure still reads as one.
+- The `docx` dependency is loaded with a dynamic import, so it never enters the
+  initial application chunk — verified against a production build, where it
+  splits into its own ~411 kB chunk and adds ~3 kB to the app chunk. Someone
+  merging two PDFs never downloads a Word writer.
 
 ### Changed
 

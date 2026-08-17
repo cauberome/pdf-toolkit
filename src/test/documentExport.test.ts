@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import JSZip from 'jszip';
 import { exportMarkdown } from '../engine/markdownExporter';
+import { exportDocx } from '../engine/docxExporter';
 import type { ExtractedDocument } from '../engine/documentModel';
 
 function decode(bytes: Uint8Array): string {
@@ -213,5 +215,131 @@ describe('Markdown export', () => {
     expect(decode(bytes).endsWith('Body.\n')).toBe(true);
     expect(bytes[bytes.length - 1]).toBe(0x0a);
     expect(bytes[bytes.length - 2]).not.toBe(0x0a);
+  });
+});
+
+const RICH_DOCUMENT = documentOf([
+  page(0, [
+    { kind: 'heading', level: 1, runs: [{ text: 'Annual Report' }] },
+    { kind: 'heading', level: 3, runs: [{ text: 'Scope' }] },
+    {
+      kind: 'paragraph',
+      runs: [
+        { text: 'Body with ' },
+        { text: 'bold', bold: true },
+        { text: ' and ' },
+        { text: 'italic', italic: true },
+        { text: ' words.' },
+      ],
+    },
+    { kind: 'list', ordered: true, items: [[{ text: 'First step' }], [{ text: 'Second step' }]] },
+    { kind: 'list', ordered: false, items: [[{ text: 'Alpha point' }], [{ text: 'Beta point' }]] },
+    {
+      kind: 'paragraph',
+      runs: [
+        { text: 'Handbook', href: 'https://example.com/handbook' },
+        { text: ' and ' },
+        { text: 'Script', href: 'javascript:alert(1)' },
+      ],
+    },
+    {
+      kind: 'table',
+      rows: [
+        [[{ text: 'Region' }], [{ text: 'Units' }]],
+        [[{ text: 'North' }], [{ text: '120' }]],
+      ],
+    },
+    { kind: 'paragraph', runs: [{ text: '年度報告 Ελληνικά' }] },
+  ]),
+  page(1, [{ kind: 'paragraph', runs: [{ text: 'Second page body.' }] }]),
+]);
+
+async function openDocx(document: ExtractedDocument) {
+  const blob = await exportDocx(document);
+  const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+  return {
+    zip,
+    xml: await zip.file('word/document.xml')!.async('string'),
+    relationships: await zip.file('word/_rels/document.xml.rels')!.async('string'),
+    numbering: (await zip.file('word/numbering.xml')?.async('string')) ?? '',
+  };
+}
+
+describe('DOCX export', () => {
+  it('packages a real Word document with every supported structure', async () => {
+    const { zip, xml, numbering } = await openDocx(RICH_DOCUMENT);
+
+    expect(zip.file('[Content_Types].xml')).not.toBeNull();
+    expect(xml).toContain('Heading1');
+    expect(xml).toContain('Heading3');
+    expect(xml).toContain('Annual Report');
+    expect(xml).toContain('Second page body.');
+
+    // Styled runs carry real run properties, not just text.
+    expect(xml).toContain('<w:b/>');
+    expect(xml).toContain('<w:i/>');
+
+    // Both list shapes are defined and referenced.
+    expect(xml).toContain('<w:numPr>');
+    expect(numbering).toContain('decimal');
+    expect(numbering).toContain('bullet');
+
+    expect(xml).toContain('<w:tbl>');
+    expect(xml).toContain('Region');
+    expect(xml).toContain('年度報告 Ελληνικά');
+
+    // A page break separates each extracted page after the first.
+    expect(xml).toContain('w:type="page"');
+  });
+
+  it('links only safe targets, as external relationships', async () => {
+    const { xml, relationships } = await openDocx(RICH_DOCUMENT);
+
+    expect(relationships).toContain('https://example.com/handbook');
+    expect(relationships).toContain('TargetMode="External"');
+    expect(relationships).not.toContain('javascript:');
+    expect(xml).toContain('<w:hyperlink');
+    // The unsafe target keeps its visible text.
+    expect(xml).toContain('Script');
+  });
+
+  it('ships no macros, embedded fonts, or media', async () => {
+    const { zip } = await openDocx(RICH_DOCUMENT);
+    const names = Object.keys(zip.files);
+
+    expect(zip.file('word/vbaProject.bin')).toBeNull();
+    expect(names.some((name) => name.startsWith('word/media/'))).toBe(false);
+    expect(names.some((name) => name.startsWith('word/fonts/'))).toBe(false);
+    expect(names.some((name) => name.endsWith('.odttf'))).toBe(false);
+  });
+
+  it('inserts one page break per page boundary and none before the first page', async () => {
+    const { xml } = await openDocx(RICH_DOCUMENT);
+    const breaks = xml.match(/w:type="page"/g) ?? [];
+
+    expect(breaks).toHaveLength(1);
+    expect(xml.indexOf('Annual Report')).toBeLessThan(xml.indexOf('w:type="page"'));
+  });
+
+  it('produces a Word MIME type blob for a single-page document', async () => {
+    const blob = await exportDocx(
+      documentOf([page(0, [{ kind: 'paragraph', runs: [{ text: 'Only page.' }] }])]),
+    );
+
+    expect(blob.type).toContain('wordprocessingml.document');
+    expect(blob.size).toBeGreaterThan(0);
+  });
+
+  it('reports a library failure as a recoverable processing error', async () => {
+    const broken = {
+      ...RICH_DOCUMENT,
+      pages: [{ sourcePageIndex: 0, hasExtractableText: true, blocks: [{ kind: 'table', rows: null }] }],
+    } as unknown as ExtractedDocument;
+
+    await expect(exportDocx(broken)).rejects.toMatchObject({
+      name: 'ProcessingError',
+      recoverable: true,
+      fileName: 'report.pdf',
+    });
   });
 });
