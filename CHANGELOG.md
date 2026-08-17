@@ -6,7 +6,20 @@ The format follows Keep a Changelog, and this project uses semantic versioning.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+Work in progress on private, browser-only conversion of text-based PDFs into
+editable Word (DOCX) and Markdown files, for the whole document or one
+contiguous page range.
+
+- Format-neutral document model (`src/engine/documentModel.ts`): headings,
+  paragraphs, ordered and unordered lists, conservative tables, and inline runs
+  carrying bold, italic, and safe link targets. One extraction feeds both output
+  formats. `pageIndicesForScope` is the single validation boundary for page
+  selection — ranges are inclusive/exclusive and zero-based inside the engine,
+  and an empty, fractional, negative, or past-the-end range is refused as a
+  recoverable `INVALID_SELECTION`. `summarizeDocument` reports page, heading,
+  paragraph, list, table, and link counts plus one-based empty page numbers.
 
 ## [1.0.0] - 2026-08-17
 
