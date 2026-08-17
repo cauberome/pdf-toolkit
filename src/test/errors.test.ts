@@ -62,6 +62,7 @@ describe('Typed processing errors', () => {
       'IMAGE_DECODE_FAILED',
       'PAGE_OUT_OF_RANGE',
       'INVALID_SELECTION',
+      'NO_EXTRACTABLE_TEXT',
       'RENDER_FAILED',
       'OUT_OF_MEMORY',
       'UNKNOWN',
@@ -79,6 +80,15 @@ describe('Typed processing errors', () => {
     const message = toUserMessage(new ProcessingError('ENCRYPTED_PDF', 'x', { fileName: 'secret.pdf' }));
     expect(message).toContain('secret.pdf');
     expect(message).toMatch(/password/i);
+  });
+
+  it('explains that a document without a text layer needs OCR', () => {
+    const message = toUserMessage(
+      new ProcessingError('NO_EXTRACTABLE_TEXT', 'no text layer', { fileName: 'scan.pdf' }),
+    );
+    expect(message).toContain('scan.pdf');
+    expect(message).toContain('no extractable text');
+    expect(message).toContain('OCR');
   });
 
   it('converts unknown throwables into a readable message', () => {

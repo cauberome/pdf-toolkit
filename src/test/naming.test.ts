@@ -10,6 +10,7 @@ import {
   compressedFilename,
   croppedFilename,
   pagesAddedFilename,
+  documentOutputNames,
 } from '../engine/naming';
 
 describe('Output naming', () => {
@@ -49,6 +50,43 @@ describe('Output naming', () => {
     expect(compressedFilename('report.pdf')).toBe('report-compressed.pdf');
     expect(croppedFilename('report.pdf')).toBe('report-cropped.pdf');
     expect(pagesAddedFilename('report.pdf')).toBe('report-pages-added.pdf');
+  });
+
+  it('names Word, Markdown, and combined outputs for a whole document', () => {
+    expect(documentOutputNames('report.pdf', { mode: 'all' })).toEqual({
+      docx: 'report.docx',
+      markdown: 'report.md',
+      zip: 'report-documents.zip',
+    });
+  });
+
+  it('turns an engine range into one-based page numbers in output names', () => {
+    expect(
+      documentOutputNames('report.pdf', {
+        mode: 'range',
+        startIndex: 1,
+        endIndexExclusive: 4,
+      }),
+    ).toEqual({
+      docx: 'report-pages-2-4.docx',
+      markdown: 'report-pages-2-4.md',
+      zip: 'report-pages-2-4-documents.zip',
+    });
+
+    expect(
+      documentOutputNames('report.pdf', {
+        mode: 'range',
+        startIndex: 0,
+        endIndexExclusive: 1,
+      }).markdown,
+    ).toBe('report-pages-1-1.md');
+  });
+
+  it('sanitises hostile source names before building document outputs', () => {
+    expect(documentOutputNames('../../etc/passwd.pdf', { mode: 'all' }).docx).toBe(
+      '.._.._etc_passwd.docx',
+    );
+    expect(documentOutputNames('???', { mode: 'all' }).zip).toBe('document-documents.zip');
   });
 
   it('sanitises hostile source names before building outputs', () => {

@@ -40,7 +40,22 @@ contiguous page range.
   producing an empty download, and the pdf.js document is always released.
 - Only `http`, `https`, and `mailto` link targets survive into an exported
   document; every other scheme keeps its visible text and loses the target,
-  since exports are opened later, outside this tool.
+  since exports are opened later, outside this tool. The check runs again in
+  each serializer, because that is the last point before a target is written
+  into a file.
+- Markdown export (`src/engine/markdownExporter.ts`): deterministic UTF-8
+  GitHub-flavored Markdown with headings, paragraphs, ordered and unordered
+  lists, tables, emphasis, safe links, and `<!-- Page n -->` boundary comments.
+  Escaping is narrow on purpose — the characters that change meaning inline,
+  plus line-start markers — so prose stays readable to whoever edits the file.
+  Nothing is invented: no title from the filename, and a table's header row is
+  its first row, since the model does not claim to know which row is a header.
+- Output names for the new formats: `<source>.docx`, `<source>.md`, and
+  `<source>-documents.zip`, with `-pages-<start>-<end>` added for a range. This
+  is the one place zero-based engine indexes become the one-based page numbers a
+  person reads.
+- New `NO_EXTRACTABLE_TEXT` error category, whose message names the file, says
+  it has no extractable text, and explains that OCR would be required.
 
 ### Changed
 

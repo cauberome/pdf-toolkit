@@ -9,6 +9,7 @@
 
 import { getBaseFilename } from './validation';
 import { ImageFormat } from './types';
+import type { ExtractionScope } from './documentModel';
 
 export const MERGED_FILENAME = 'merged.pdf';
 export const IMAGES_PDF_FILENAME = 'converted-images.pdf';
@@ -75,4 +76,34 @@ export function croppedFilename(sourceName: string): string {
 
 export function pagesAddedFilename(sourceName: string): string {
   return `${safeBase(sourceName)}-pages-added.pdf`;
+}
+
+export type DocumentOutputNames = {
+  docx: string;
+  markdown: string;
+  zip: string;
+};
+
+/**
+ * Names for the Word, Markdown, and combined outputs of one conversion.
+ *
+ * A range is the only part of the engine's zero-based indexing a person ever
+ * sees, so the conversion to one-based, inclusive page numbers happens here and
+ * nowhere else: `startIndex: 1, endIndexExclusive: 4` is "pages 2-4".
+ */
+export function documentOutputNames(
+  sourceName: string,
+  scope: ExtractionScope,
+): DocumentOutputNames {
+  const base = safeBase(sourceName);
+  const suffix =
+    scope.mode === 'range'
+      ? `-pages-${scope.startIndex + 1}-${scope.endIndexExclusive}`
+      : '';
+
+  return {
+    docx: `${base}${suffix}.docx`,
+    markdown: `${base}${suffix}.md`,
+    zip: `${base}${suffix}-documents.zip`,
+  };
 }
