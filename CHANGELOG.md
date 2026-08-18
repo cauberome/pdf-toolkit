@@ -101,7 +101,7 @@ contiguous page range.
 
 ### Verified so far (unreleased)
 
-- `npm run verify` — ESLint 0 problems, `tsc --noEmit` 0 errors, Vitest 209/209
+- `npm run verify` — ESLint 0 problems, `tsc --noEmit` 0 errors, Vitest 211/211
   across 16 files, production build succeeded. `docx` still splits into its own
   ~411 kB chunk rather than joining the app chunk.
 - `npm run test:e2e` — 29/29 in Chromium, up from 24 at 1.0.0.
@@ -143,6 +143,18 @@ renderer; the push, CI, and live-site acceptance.
 
 ### Fixed
 
+- A space between two adjacent links was absorbed into the second link instead
+  of standing between them, so it rendered as link text — underlined and
+  colored in Word, inside the brackets in Markdown. `runsForTokens` gave the
+  separator to whichever side was unstyled, as `joinRuns` already did, but had
+  no case for neither side being unstyled; the space is now a run of its own.
+  Only two links side by side on one line reach that case, which is why the
+  fixtures never did.
+- Markdown headings and table header rows carried emphasis markers the format
+  already supplies — `# **Title**`, `| **Region** |` — because the source PDF
+  draws them in a bold font. Both are rendered bold by any GFM renderer, so the
+  markers only cluttered the file someone edits. A bold *body* cell keeps its
+  emphasis, since nothing else conveys it there.
 - The Convert tab row was 10 pixels wider than a 390-pixel viewport once the
   third tab was added, scrolling the whole page sideways. The row now wraps
   instead of overflowing, so no tab is pushed out of reach. Caught by extending

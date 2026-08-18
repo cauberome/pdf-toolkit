@@ -178,6 +178,10 @@ function isPlain(run: InlineRun): boolean {
   return !run.bold && !run.italic && !run.href;
 }
 
+function isPlainStyle(style: Style): boolean {
+  return !style.bold && !style.italic && !style.href;
+}
+
 /**
  * Attaches a separator to whichever side is unstyled. A space trapped inside a
  * bold or linked run is both wrong to read and, in Markdown, enough to stop
@@ -226,8 +230,16 @@ function runsForTokens(tokens: NormalizedToken[]): InlineRun[] {
       return;
     }
 
-    if (separator && previousRun && isPlain(previousRun)) {
-      previousRun.text += separator;
+    if (separator && previousRun) {
+      // The separator goes to whichever side is unstyled, as in `joinRuns`.
+      // When neither side is — two links side by side — it becomes a run of its
+      // own rather than part of a link, where it would read as linked text.
+      if (isPlain(previousRun)) previousRun.text += separator;
+      else if (!isPlainStyle(token.style)) runs.push({ text: separator });
+      else {
+        runs.push(makeRun(separator + token.text, token.style));
+        return;
+      }
       runs.push(makeRun(token.text, token.style));
       return;
     }

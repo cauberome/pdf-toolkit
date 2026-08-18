@@ -114,6 +114,41 @@ describe('Markdown export', () => {
     );
   });
 
+  it('omits emphasis a heading or header row already carries', () => {
+    const markdown = decode(
+      exportMarkdown(
+        documentOf([
+          page(0, [
+            { kind: 'heading', level: 1, runs: [{ text: 'Quarterly Report', bold: true }] },
+            {
+              kind: 'table',
+              rows: [
+                [[{ text: 'Region', bold: true }], [{ text: 'Units', bold: true }]],
+                [[{ text: 'North' }], [{ text: '120', bold: true }]],
+              ],
+            },
+          ]),
+        ]),
+      ),
+    );
+
+    // `#` and a GFM header row are already rendered bold, so repeating the
+    // markers only clutters the file someone edits. A bold body cell keeps its
+    // emphasis, because nothing else conveys it there.
+    expect(markdown).toBe(
+      [
+        '<!-- Page 1 -->',
+        '',
+        '# Quarterly Report',
+        '',
+        '| Region | Units |',
+        '| --- | --- |',
+        '| North | **120** |',
+        '',
+      ].join('\n'),
+    );
+  });
+
   it('writes safe links and leaves unsafe targets as plain text', () => {
     const markdown = decode(
       exportMarkdown(

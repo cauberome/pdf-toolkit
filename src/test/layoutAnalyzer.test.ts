@@ -292,6 +292,26 @@ describe('page layout analysis', () => {
     expect(isSafeHref(undefined)).toBe(false);
   });
 
+  it('keeps the space between two adjacent links out of both of them', () => {
+    const blocks = analyze([
+      token('Full site', 50, 700, 11, { href: 'https://example.com/report' }),
+      token('Email us', 140, 700, 11, { href: 'mailto:team@example.com' }),
+    ]);
+
+    // A space absorbed into a link becomes part of the link text: underlined in
+    // Word, inside the brackets in Markdown. It belongs to neither target.
+    expect(blocks).toEqual([
+      {
+        kind: 'paragraph',
+        runs: [
+          { text: 'Full site', href: 'https://example.com/report' },
+          { text: ' ' },
+          { text: 'Email us', href: 'mailto:team@example.com' },
+        ],
+      },
+    ]);
+  });
+
   it('splits differently styled tokens into separate runs on one line', () => {
     const blocks = analyze([
       token('Please read the ', 50, 700, 11),

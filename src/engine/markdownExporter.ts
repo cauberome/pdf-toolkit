@@ -64,24 +64,32 @@ function emphasise(text: string, run: InlineRun): string {
   return `${leading}${marker}${core}${marker}${trailing}`;
 }
 
-function serializeRun(run: InlineRun): string {
-  const emphasised = emphasise(escapeText(run.text), run);
+/**
+ * @param emphasis whether emphasis markers are worth writing. A heading and a
+ * GFM header row are already rendered bold, so repeating the markers there adds
+ * nothing but clutter to the file someone will edit.
+ */
+function serializeRun(run: InlineRun, emphasis: boolean): string {
+  const escaped = escapeText(run.text);
+  const styled = emphasis ? emphasise(escaped, run) : escaped;
   // Extraction already drops unsafe schemes. The check is repeated here because
   // this is the last point before a target is written into a file that will be
   // opened somewhere else entirely.
-  return isSafeHref(run.href) ? `[${emphasised}](${serializeHref(run.href!)})` : emphasised;
+  return isSafeHref(run.href) ? `[${styled}](${serializeHref(run.href!)})` : styled;
 }
 
-function serializeRuns(runs: InlineRun[]): string {
-  return runs.map(serializeRun).join('');
+function serializeRuns(runs: InlineRun[], emphasis = true): string {
+  return runs.map((run) => serializeRun(run, emphasis)).join('');
 }
 
 function serializeTable(rows: InlineRun[][][]): string {
   const columns = rows.reduce((widest, row) => Math.max(widest, row.length), 0);
   if (columns === 0) return '';
 
-  const line = (cells: InlineRun[][]) => {
-    const padded = Array.from({ length: columns }, (_, index) => serializeRuns(cells[index] ?? []));
+  const line = (cells: InlineRun[][], emphasis = true) => {
+    const padded = Array.from({ length: columns }, (_, index) =>
+      serializeRuns(cells[index] ?? [], emphasis),
+    );
     return `| ${padded.join(' | ')} |`;
   };
 
@@ -91,13 +99,13 @@ function serializeTable(rows: InlineRun[][][]): string {
   const [header, ...body] = rows;
   const separator = `| ${Array.from({ length: columns }, () => '---').join(' | ')} |`;
 
-  return [line(header), separator, ...body.map(line)].join('\n');
+  return [line(header, false), separator, ...body.map((row) => line(row))].join('\n');
 }
 
 function serializeBlock(block: DocumentBlock): string {
   switch (block.kind) {
     case 'heading':
-      return `${'#'.repeat(block.level)} ${serializeRuns(block.runs)}`;
+      return `${'#'.repeat(block.level)} ${serializeRuns(block.runs, false)}`;
     case 'paragraph':
       return escapeLineStart(serializeRuns(block.runs));
     case 'list':
