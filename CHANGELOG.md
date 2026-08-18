@@ -137,9 +137,18 @@ contiguous page range.
   rule — two anchors over three rows — and prose columns, whose lines do not
   line up, are read as columns.
 
+- CI and deployment accepted on run 32162692443: `npm run verify`, 29 Chromium
+  tests, and the GitHub Pages deploy all green. The two runs before it failed,
+  both for the Node 20 reason above — the first was misread as slow tests, which
+  cost a commit before the stack trace was read properly.
+- The deployed site at <https://cauberome.github.io/pdf-toolkit/> was accepted
+  with `PLAYWRIGHT_BASE_URL=... npm run test:e2e`: 18 passed, 11 skipped, the
+  skips being the dev-only harness specs. That is up from 13 workflow tests at
+  1.0.0, the five new ones being document conversion.
+
 Still outstanding before release: opening a generated DOCX in Microsoft Word or
 LibreOffice (neither is installed here) and viewing the Markdown in a GFM
-renderer; the push, CI, and live-site acceptance.
+renderer.
 
 ### Fixed
 

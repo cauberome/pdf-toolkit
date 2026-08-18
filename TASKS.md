@@ -76,8 +76,12 @@ working tree.
 - [~] Manual acceptance in Microsoft Word or LibreOffice, and in a GFM
   renderer. Neither application is installed on this machine; macOS `textutil`
   was used as an independent DOCX reader instead. Outstanding.
-- [ ] Push to `main`, confirm the GitHub Actions verify and deploy jobs pass.
-- [ ] Accept the live site:
-  `PLAYWRIGHT_BASE_URL=https://cauberome.github.io/pdf-toolkit/ npm run test:e2e`.
+- [x] Push to `main`, confirm the GitHub Actions verify and deploy jobs pass.
+  Run 32162692443: verify, 29 Chromium tests, and the Pages deploy all green.
+  Two earlier runs failed first — see the changelog's Node 22 entry.
+- [x] Accept the live site:
+  `PLAYWRIGHT_BASE_URL=https://cauberome.github.io/pdf-toolkit/ npm run test:e2e`
+  — 18 passed, 11 skipped, the skips being the dev-only harness specs. Up from
+  13 workflow tests at 1.0.0.
 - [ ] Move the changelog entry to 1.1.0 with its real date, then delete this
   file.
