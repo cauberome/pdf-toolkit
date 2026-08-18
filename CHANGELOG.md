@@ -152,6 +152,20 @@ renderer.
 
 ### Fixed
 
+- Two common real-world tables were read as prose instead of tables, which is
+  how a table with figures in it came out as ordinary paragraphs. Column
+  anchors were taken from cells' left edges only, so a right-aligned column of
+  numbers — the normal way a report sets figures — moved its left edge with the
+  width of each number and drifted out of tolerance; a header row, whose words
+  are longer than the figures under it, was the first thing dropped. An anchor
+  now holds both edges and matches on whichever is closer, so alignment no
+  longer decides detection. Separately, a cell whose text wrapped put a short
+  line under one column, which ended the run of rows before it reached three
+  and left the whole table as prose; such a line now continues the row above
+  it. The conservative rule is unchanged in what it promises: a wrapped line
+  does not count towards the three rows, only a column other than the first can
+  absorb one — a line back at the left margin is how prose resumes — and a row
+  is still never partly admitted. Two aligned rows remain paragraphs.
 - A space between two adjacent links was absorbed into the second link instead
   of standing between them, so it rendered as link text — underlined and
   colored in Word, inside the brackets in Markdown. `runsForTokens` gave the

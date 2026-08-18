@@ -116,7 +116,7 @@ type Line = {
   fontSize: number;
 };
 
-type Cell = { left: number; runs: InlineRun[] };
+type Cell = { left: number; right: number; runs: InlineRun[] };
 
 function median(values: number[]): number {
   if (values.length === 0) return 0;
@@ -458,16 +458,77 @@ function cellsForLine(line: Line, pageWidth: number): Cell[] {
 
   return groups.map((group) => ({
     left: Math.min(...group.map((token) => token.left)),
+    right: Math.max(...group.map((token) => token.right)),
     runs: runsForTokens(group),
   }));
 }
 
-type TableRun = { start: number; end: number; anchors: number[]; rows: Cell[][] };
+/**
+ * A column's position, held as both edges. A left-aligned column keeps a stable
+ * left edge; a right-aligned one — every column of figures in a real report —
+ * keeps a stable right edge while its left moves with the width of the text.
+ */
+type Anchor = { left: number; right: number };
+
+type TableRun = { start: number; end: number; rows: InlineRun[][][] };
 
 /**
- * Finds runs of consecutive lines that share at least two stable column
- * anchors over at least three rows. Two aligned rows are an accident; three
- * are a table.
+ * The column a cell belongs to, or -1. Matching takes whichever edge is closer,
+ * so a column's alignment does not decide whether it is found.
+ */
+function anchorIndexFor(cell: Cell, anchors: Anchor[], tolerance: number): number {
+  let best = Number.POSITIVE_INFINITY;
+  let index = -1;
+
+  anchors.forEach((anchor, position) => {
+    const distance = Math.min(
+      Math.abs(anchor.left - cell.left),
+      Math.abs(anchor.right - cell.right),
+    );
+    if (distance <= tolerance && distance < best) {
+      best = distance;
+      index = position;
+    }
+  });
+
+  return index;
+}
+
+/**
+ * Places a row's cells in their columns, or returns null when the row does not
+ * belong to the table: a cell matching no column, two cells claiming one, or
+ * too few columns filled. A row is never partly admitted.
+ */
+function placeRow(cells: Cell[], anchors: Anchor[], tolerance: number): InlineRun[][] | null {
+  const row: InlineRun[][] = anchors.map(() => []);
+  const filled = new Set<number>();
+
+  for (const cell of cells) {
+    const index = anchorIndexFor(cell, anchors, tolerance);
+    if (index < 0 || filled.has(index)) return null;
+    filled.add(index);
+    row[index] = cell.runs;
+  }
+
+  return filled.size >= TABLE_MIN_COLUMNS ? row : null;
+}
+
+/**
+ * The column a wrapped cell continues, or -1. Only a column other than the
+ * first qualifies: a single line back at the left margin is how ordinary prose
+ * resumes after a table, and reading that as a cell would swallow it.
+ */
+function continuationColumn(cells: Cell[], anchors: Anchor[], tolerance: number): number {
+  if (cells.length !== 1) return -1;
+  const index = anchorIndexFor(cells[0], anchors, tolerance);
+  return index > 0 ? index : -1;
+}
+
+/**
+ * Finds runs of consecutive lines sharing at least two stable column anchors
+ * over at least three rows. Two aligned rows are an accident; three are a
+ * table. A wrapped cell extends the row above it and does not count towards
+ * those three, so the threshold still measures rows rather than lines.
  */
 function detectTables(lines: Line[], pageWidth: number): TableRun[] {
   const tolerance = TABLE_ANCHOR_TOLERANCE_RATIO * pageWidth;
@@ -481,21 +542,33 @@ function detectTables(lines: Line[], pageWidth: number): TableRun[] {
       continue;
     }
 
-    const anchors = rowCells[index].map((cell) => cell.left);
-    const rows: Cell[][] = [rowCells[index]];
+    const anchors: Anchor[] = rowCells[index].map((cell) => ({
+      left: cell.left,
+      right: cell.right,
+    }));
+    const rows: InlineRun[][][] = [rowCells[index].map((cell) => cell.runs)];
     let end = index + 1;
 
-    while (end < lines.length && rowCells[end].length >= TABLE_MIN_COLUMNS) {
-      const matched = rowCells[end].filter((cell) =>
-        anchors.some((anchor) => Math.abs(anchor - cell.left) <= tolerance),
-      );
-      if (matched.length < TABLE_MIN_COLUMNS || matched.length !== rowCells[end].length) break;
-      rows.push(rowCells[end]);
+    while (end < lines.length) {
+      const cells = rowCells[end];
+      const row = cells.length >= TABLE_MIN_COLUMNS ? placeRow(cells, anchors, tolerance) : null;
+
+      if (row) {
+        rows.push(row);
+        end += 1;
+        continue;
+      }
+
+      const column = continuationColumn(cells, anchors, tolerance);
+      if (column < 0) break;
+
+      const last = rows[rows.length - 1];
+      last[column] = joinRuns(last[column], cells[0].runs, ' ');
       end += 1;
     }
 
     if (rows.length >= TABLE_MIN_ROWS) {
-      tables.push({ start: index, end, anchors, rows });
+      tables.push({ start: index, end, rows });
       index = end;
     } else {
       index += 1;
@@ -505,25 +578,8 @@ function detectTables(lines: Line[], pageWidth: number): TableRun[] {
   return tables;
 }
 
-function tableBlock(table: TableRun, tolerance: number): DocumentBlock {
-  const rows = table.rows.map((cells) => {
-    const row: InlineRun[][] = table.anchors.map(() => []);
-    for (const cell of cells) {
-      let target = 0;
-      let best = Number.POSITIVE_INFINITY;
-      table.anchors.forEach((anchor, position) => {
-        const distance = Math.abs(anchor - cell.left);
-        if (distance < best) {
-          best = distance;
-          target = position;
-        }
-      });
-      row[target] = best <= tolerance ? cell.runs : row[target];
-    }
-    return row;
-  });
-
-  return { kind: 'table', rows };
+function tableBlock(table: TableRun): DocumentBlock {
+  return { kind: 'table', rows: table.rows };
 }
 
 // --- Blocks -----------------------------------------------------------------
@@ -657,7 +713,6 @@ export function analyzePageLayout(input: PageLayoutInput): DocumentBlock[] {
 
   const pageWidth = input.pageWidth > 0 ? input.pageWidth : 612;
   const singleColumn = groupLines(tokens);
-  const anchorTolerance = TABLE_ANCHOR_TOLERANCE_RATIO * pageWidth;
 
   // A table's columns look exactly like page columns from a distance. The
   // stricter pattern wins: if the page reads as a table, it is not split.
@@ -686,7 +741,7 @@ export function analyzePageLayout(input: PageLayoutInput): DocumentBlock[] {
   while (index < lines.length) {
     const table = tableAt.get(index);
     if (table) {
-      blocks.push(tableBlock(table, anchorTolerance));
+      blocks.push(tableBlock(table));
       index = table.end;
       continue;
     }

@@ -269,6 +269,62 @@ describe('page layout analysis', () => {
     expect(blocks.every((block) => block.kind === 'paragraph')).toBe(true);
   });
 
+  it('keeps a right-aligned numeric column together with its header row', () => {
+    // Real reports right-align numbers, so a cell's left edge moves with the
+    // width of its text while its right edge stays put. Anchoring on the left
+    // edge alone drops whichever row's text lengths differ most — usually the
+    // header, whose words are longer than the figures below it.
+    const rows = [
+      ['Region', 'Revenue', 'Growth'],
+      ['North', '1,240', '12%'],
+      ['South', '980', '7%'],
+      ['East', '12,500', '3%'],
+    ];
+    const tokens = rows.flatMap((row, index) => {
+      const y = 700 - index * 20;
+      return [
+        token(row[0], 72, y),
+        token(row[1], 320 - row[1].length * 5.5, y),
+        token(row[2], 470 - row[2].length * 5.5, y),
+      ];
+    });
+
+    const blocks = analyze(tokens);
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toMatchObject({ kind: 'table' });
+    const table = blocks[0] as { kind: 'table'; rows: Array<Array<Array<{ text: string }>>> };
+    expect(table.rows.map((row) => row.map((cell) => cell.map((run) => run.text).join('')))).toEqual([
+      ['Region', 'Revenue', 'Growth'],
+      ['North', '1,240', '12%'],
+      ['South', '980', '7%'],
+      ['East', '12,500', '3%'],
+    ]);
+  });
+
+  it('absorbs a wrapped cell into the row it continues', () => {
+    // A cell whose text wraps puts a short line under one column. Treating that
+    // as the end of the table left the rows below it as prose, which is how a
+    // real table came out as paragraphs.
+    const blocks = analyze([
+      token('Region', 72, 700),
+      token('Notes', 252, 700),
+      token('North', 72, 680),
+      token('Grew on renewals and', 252, 680),
+      token('a pricing change', 252, 664),
+      token('South', 72, 644),
+      token('Flat year over year', 252, 644),
+    ]);
+
+    expect(blocks).toHaveLength(1);
+    const table = blocks[0] as { kind: 'table'; rows: Array<Array<Array<{ text: string }>>> };
+    expect(table.rows.map((row) => row.map((cell) => cell.map((run) => run.text).join('')))).toEqual([
+      ['Region', 'Notes'],
+      ['North', 'Grew on renewals and a pricing change'],
+      ['South', 'Flat year over year'],
+    ]);
+  });
+
   it('keeps only http, https, and mailto link targets', () => {
     const blocks = analyze([
       token('Safe site', 50, 700, 11, { href: 'https://example.com/report' }),
