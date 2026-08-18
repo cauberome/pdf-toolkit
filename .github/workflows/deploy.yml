@@ -26,9 +26,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pdf.js 4.10 calls `Promise.withResolvers`, which Node gained in 22.
+      # The browser bundle is unaffected, but the unit suites now open real
+      # documents with pdf.js under jsdom, so the runner needs it too.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       # `npm ci` installs exactly what package-lock.json pins.

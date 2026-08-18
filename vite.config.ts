@@ -9,13 +9,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    // Three suites open real documents with pdf.js under jsdom — the loader,
-    // the text extractor, and the conversion panel, whose page count is
-    // deliberately not mocked. The first such load in a worker pays for
-    // importing and warming the worker module, which a cold CI runner does not
-    // finish inside Vitest's 5-second default; the panel's own 10-second
-    // `findByRole` wait could never be reached under it.
-    testTimeout: 15_000,
     setupFiles: ['./src/test/setup.ts'],
     // Vitest would otherwise collect `e2e/*.spec.ts` by its default glob and
     // fail on Playwright's runner. Those specs belong to `npm run test:e2e`.

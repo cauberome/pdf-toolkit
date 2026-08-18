@@ -56,7 +56,10 @@ no template fetch, no service.
 
 ## Requirements
 
-- Node.js 20 or newer (CI builds on Node 20)
+- Node.js 22 or newer (CI builds on Node 22). The tests open real documents
+  with pdf.js under jsdom, and pdf.js calls `Promise.withResolvers`, which
+  arrived in Node 22. The built site itself has no such requirement beyond
+  pdf.js's own browser baseline.
 - npm 10 or newer
 - A current version of Chrome, Firefox, Safari, or Edge
 
