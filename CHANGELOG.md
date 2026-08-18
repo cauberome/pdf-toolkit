@@ -175,7 +175,9 @@ renderer; the push, CI, and live-site acceptance.
   `Worker`, so pdf.js imports its worker module directly and cannot use Vite's
   `?url` server path; the Vitest config aliases that one import to a module
   resolving the same file to a `file://` URL. Application code is identical in
-  both environments.
+  both environments. Those suites also carry a 15-second test timeout: the
+  first real load in a worker pays for warming the worker module, which a cold
+  CI runner does not finish inside Vitest's 5-second default.
 
 ## [1.0.0] - 2026-08-17
 
