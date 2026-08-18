@@ -4,13 +4,12 @@ All notable changes to the PDF Toolkit will be recorded in this file.
 
 The format follows Keep a Changelog, and this project uses semantic versioning.
 
-## [Unreleased]
+## [1.1.0] - 2026-08-19
+
+Private, browser-only conversion of text-based PDFs into editable Word (DOCX)
+and Markdown files, for the whole document or one contiguous page range.
 
 ### Added
-
-Work in progress on private, browser-only conversion of text-based PDFs into
-editable Word (DOCX) and Markdown files, for the whole document or one
-contiguous page range.
 
 - Format-neutral document model (`src/engine/documentModel.ts`): headings,
   paragraphs, ordered and unordered lists, conservative tables, and inline runs
@@ -99,9 +98,9 @@ contiguous page range.
   request off the origin. The phone-width check now also covers the Convert
   workspace with the new tab selected.
 
-### Verified so far (unreleased)
+### Verified at release
 
-- `npm run verify` — ESLint 0 problems, `tsc --noEmit` 0 errors, Vitest 211/211
+- `npm run verify` — ESLint 0 problems, `tsc --noEmit` 0 errors, Vitest 213/213
   across 16 files, production build succeeded. `docx` still splits into its own
   ~411 kB chunk rather than joining the app chunk.
 - `npm run test:e2e` — 29/29 in Chromium, up from 24 at 1.0.0.
@@ -146,9 +145,13 @@ contiguous page range.
   skips being the dev-only harness specs. That is up from 13 workflow tests at
   1.0.0, the five new ones being document conversion.
 
-Still outstanding before release: opening a generated DOCX in Microsoft Word or
-LibreOffice (neither is installed here) and viewing the Markdown in a GFM
-renderer.
+Not performed: opening a generated DOCX in Microsoft Word or LibreOffice.
+Neither is installed on the machine this was built on, so macOS `textutil` —
+a reader with no connection to the library that wrote the file — stood in, and
+the package structure was asserted directly against the generated XML. The
+release was accepted without that step at the maintainer's discretion. The
+Markdown was viewed in a GFM renderer, which is what turned up the table
+defect below.
 
 ### Fixed
 
